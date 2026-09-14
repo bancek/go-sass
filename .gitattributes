@@ -1,0 +1,7 @@
+bench/*.scss linguist-vendored
+# Fixture goldens are compared byte-wise: a CRLF checkout on Windows would
+# fail every fixture test with an invisible diff.
+test/fixtures/** linguist-vendored text eol=lf
+# Go sources always check out with LF: the CI gofmt gate runs on Windows too,
+# where a CRLF checkout would flag every file.
+*.go text eol=lf

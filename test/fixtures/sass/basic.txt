@@ -1,0 +1,13 @@
+// Variables
+ $color: red; $size: 10px; // Mixin
+ @mixin my-mixin {color: $color;} // Style rules
+ a
+ {color: $color; font-size: $size; @include my-mixin; // Nested
+ > span
+ {font-weight: bold; @media screen {text-decoration: underline;}} // Interpolation
+ &--#{$color}
+ {background: blue;}} // Function
+ @function double($n) {@return $n * 2;} b
+ {width: double(20px);} // For loop
+ @for $i from 1 through 3 {.for-#{$i}
+ {width: 10px * $i;}}

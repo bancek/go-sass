@@ -1,0 +1,1 @@
+@function double($n) {@return $n * 2;} .foo  {width: double(10px);}

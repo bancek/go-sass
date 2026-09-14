@@ -1,0 +1,1 @@
+$i: 6; @while $i > 0 {.item-#{$i}  {width: 10px * $i;} $i: $i - 2;} $sizes: 10px, 20px, 30px; @each $s in $sizes {.s-#{$s}  {width: $s;}}

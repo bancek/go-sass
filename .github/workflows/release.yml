@@ -1,0 +1,452 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.triple }}
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Native per-OS runners: the shipped binaries link C libm
+          # (sassmathcgo, -tags cgomath) for exact Dart matching, and cgo
+          # has no linux-hosted cross path — each OS needs its own SDK.
+          # `artifact` is the staged filename: distinct per triple,
+          # human-usable straight from the run's artifact download.
+          - triple: linux-x64
+            runner: ubuntu-24.04
+            artifact: go-sass-linux-x64
+          - triple: linux-arm64
+            runner: ubuntu-24.04-arm
+            artifact: go-sass-linux-arm64
+          # Genuine musl-linked static builds (never relabeled gnu
+          # binaries): musl-gcc compiles the cgo shim for the musl target
+          # and `-static` removes the loader dependency, so one binary
+          # runs on glibc and musl alike.
+          - triple: linux-musl-x64
+            runner: ubuntu-24.04
+            artifact: go-sass-linux-musl-x64
+            musl: true
+          - triple: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+            artifact: go-sass-linux-musl-arm64
+            musl: true
+          - triple: darwin-arm64
+            runner: macos-latest
+            artifact: go-sass-darwin-arm64
+          - triple: darwin-x64
+            runner: macos-15-intel
+            artifact: go-sass-darwin-x64
+          - triple: win32-x64
+            runner: windows-latest
+            artifact: go-sass-win32-x64.exe
+          - triple: win32-arm64
+            runner: windows-11-arm
+            artifact: go-sass-win32-arm64.exe
+    steps:
+      # No submodules: the CLI build needs module sources only.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          # cache disabled while the repo is private
+          # cache: true
+      # gcc ships on ubuntu runners, clang on macOS runners, mingw gcc on
+      # Windows x64 runners (verified in the image manifests). Probe loudly —
+      # a missing compiler would otherwise surface as a cryptic cgo
+      # failure. windows-11-arm is the exception: its gcc is x86_64-only
+      # (assembling runtime/cgo arm64 sources with it fails), so that cell
+      # brings its own toolchain below.
+      - name: Probe C toolchain
+        run: gcc --version && go env CGO_ENABLED
+      - name: Install musl toolchain
+        if: ${{ matrix.musl }}
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      # ARM64 C toolchain for win32-arm64 only: msys2 CLANGARM64 (native
+      # aarch64 clang) + its bin dir on PATH, used as CC in the build step.
+      - name: Install ARM64 C toolchain
+        id: msys2
+        if: matrix.triple == 'win32-arm64'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          pacboy: toolchain:p
+      - name: Add ARM64 toolchain to PATH
+        if: matrix.triple == 'win32-arm64'
+        run: echo "${{ steps.msys2.outputs.msys2-location }}/clangarm64/bin" >> "$GITHUB_PATH"
+      - name: Build release binary
+        if: ${{ !matrix.musl && matrix.triple != 'win32-arm64' }}
+        run: |
+          mkdir -p staging
+          CGO_ENABLED=1 go build -tags cgomath -trimpath -o "staging/${{ matrix.artifact }}" ./cmd/go-sass
+      - name: Build release binary (Windows ARM64)
+        if: matrix.triple == 'win32-arm64'
+        env:
+          CC: clang
+          CGO_ENABLED: 1
+        run: |
+          mkdir -p staging
+          clang --version
+          go build -tags cgomath -trimpath -o "staging/${{ matrix.artifact }}" ./cmd/go-sass
+      - name: Build release binary (musl, static)
+        if: ${{ matrix.musl }}
+        env:
+          CC: musl-gcc
+          CGO_ENABLED: 1
+        run: |
+          mkdir -p staging
+          go build -tags cgomath -trimpath -ldflags '-linkmode external -extldflags "-static"' -o "staging/${{ matrix.artifact }}" ./cmd/go-sass
+      - name: List staged binary
+        run: |
+          ls -la staging/
+          file staging/*
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: staging/${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      # Native + Alpine smoke (musl arm64 binary), in the build job itself:
+      # this arm64 runner executes the binary directly and inside an Alpine
+      # container (host arch — no QEMU needed), proving the ubuntu+musl-gcc
+      # build is a genuine working static musl binary.
+      - name: Native + Alpine smoke (musl arm64 binary)
+        if: matrix.triple == 'linux-musl-arm64'
+        run: |
+          ./staging/go-sass-linux-musl-arm64 --version
+          docker run --rm \
+            -v "$PWD/staging:/mnt:ro" \
+            alpine /mnt/go-sass-linux-musl-arm64 --version
+
+  assemble:
+    name: Assemble npm packages
+    runs-on: ubuntu-latest
+    needs: [build]
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: write # Tags: create the draft release + `gh release upload`
+      # TODO enable on publish day (npm trusted publishing needs
+      # registry-url + OIDC; attestation needs the bundle endpoint)
+      # id-token: write # Tags: npm trusted publishing + artifact attestation
+      # attestations: write # Tags: attests the release archives
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Download prebuilt binaries
+        uses: actions/download-artifact@v7
+        with:
+          pattern: go-sass-*
+          path: prebuilt
+          # Merge all 8 staging artifacts into flat prebuilt/: the staged
+          # filenames are distinct, so nothing collides. (Without this,
+          # each artifact lands in its own prebuilt/<name>/ subdir, and
+          # flattening with mv fails: every staged file's basename equals
+          # its still-existing parent dir name, which mv refuses to
+          # overwrite with a non-directory.)
+          merge-multiple: true
+      - name: List prebuilt binaries
+        run: |
+          find prebuilt -maxdepth 1 | sort
+          # Zipped downloads do not preserve the exec bit; the smoke steps
+          # below execute the raw binaries, so restore it (platform
+          # packages get their mode from build.mjs at assembly time,
+          # release archives inherit that via tar/zip).
+          chmod +x prebuilt/*
+          file prebuilt/*
+      - name: Alpine smoke (musl x64 binary)
+        # The musl binary must actually run on musl, not just link: an
+        # Alpine container is the true consumer path for linux-musl-x64.
+        # (linux-musl-arm64 is smoked natively in its own build job: this
+        # x64 runner cannot execute arm64 without QEMU emulation.)
+        run: |
+          docker run --rm \
+            -v "$PWD/prebuilt:/mnt:ro" \
+            alpine /mnt/go-sass-linux-musl-x64 --version
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          registry-url: 'https://registry.npmjs.org'
+          # cache disabled while the repo is private
+          # cache: npm
+          # cache-dependency-path: embedded-host-node-go/package-lock.json
+      - name: Install npm deps
+        working-directory: embedded-host-node-go
+        run: npm ci
+      - name: Assemble platform packages from prebuilt binaries
+        working-directory: embedded-host-node-go
+        run: npm run build -- --platforms=all
+        env:
+          GO_SASS_DIST: ${{ github.workspace }}/prebuilt
+      - name: npm tests
+        working-directory: embedded-host-node-go
+        run: npm test
+      - name: Pack npm tarballs
+        working-directory: embedded-host-node-go
+        run: |
+          mkdir -p npm-tgzs
+          npm pack ./dist --pack-destination ./npm-tgzs
+          for triple in darwin-arm64 darwin-x64 linux-x64 linux-arm64 linux-musl-x64 linux-musl-arm64 win32-x64 win32-arm64; do
+            (cd "platform/$triple" && npm pack --pack-destination ../../npm-tgzs)
+          done
+      - name: Scratch-install smoke test
+        # Runner is always ubuntu-latest (linux-x64) — no platform mapping needed.
+        working-directory: embedded-host-node-go
+        run: |
+          ver=$(node -p "require('./package.dist.json').version")
+          pkgdir="$PWD"
+          rm -rf /tmp/scratch-test && mkdir -p /tmp/scratch-test && cd /tmp/scratch-test
+          npm init -y > /dev/null
+          npm install "$pkgdir/npm-tgzs/sass-embedded-go-$ver.tgz" "$pkgdir/npm-tgzs/sass-embedded-go-linux-x64-$ver.tgz"
+          node -e "const {compileString} = require('sass-embedded-go'); const css = compileString('a{b:1px+2px}').css; if (!css.includes('3px')) throw new Error('unexpected css: ' + css); console.log('[scratch] consumer install smoke: OK')"
+      - name: Make release archives
+        # GitHub-release binaries, named upstream-style
+        # (go-sass-<version>-<platform>-<arch>, like dart-sass assets).
+        # Runs every push so main rehearses archive naming; attached to
+        # releases on tags only.
+        run: |
+          ver=$(node -p "require('./embedded-host-node-go/package.dist.json').version")
+          root="$PWD"
+          mkdir -p release-archives
+          pack_one() { # $1=staged file, $2=archive base, $3=tar|zip
+            rm -rf stage-tmp && mkdir stage-tmp
+            if [ "$3" = "zip" ]; then
+              cp "prebuilt/$1" stage-tmp/go-sass.exe
+              cp LICENSE stage-tmp/
+              (cd stage-tmp && zip -j "$root/release-archives/$2.zip" go-sass.exe LICENSE)
+            else
+              cp "prebuilt/$1" stage-tmp/go-sass
+              cp LICENSE stage-tmp/
+              tar -czf "release-archives/$2.tar.gz" -C stage-tmp go-sass LICENSE
+            fi
+          }
+          pack_one go-sass-linux-x64 "go-sass-$ver-linux-x64" tar
+          pack_one go-sass-linux-arm64 "go-sass-$ver-linux-arm64" tar
+          pack_one go-sass-linux-musl-x64 "go-sass-$ver-linux-musl-x64" tar
+          pack_one go-sass-linux-musl-arm64 "go-sass-$ver-linux-musl-arm64" tar
+          pack_one go-sass-darwin-arm64 "go-sass-$ver-macos-arm64" tar
+          pack_one go-sass-darwin-x64 "go-sass-$ver-macos-x64" tar
+          pack_one go-sass-win32-x64.exe "go-sass-$ver-windows-x64" zip
+          pack_one go-sass-win32-arm64.exe "go-sass-$ver-windows-arm64" zip
+          (cd release-archives && sha256sum go-sass-*.tar.gz go-sass-*.zip > "go-sass-$ver-checksums.txt")
+          ls release-archives
+      # Single-file artifacts (one file per zip). Every upload needs a
+      # unique name: same-name uploads overwrite each other, and the
+      # release-archive names must not collide with the build-job staging
+      # artifacts (go-sass-<triple>). Globs match exactly one file each
+      # in a fresh npm-tgzs/release-archives; misses fail the run.
+      - name: Upload wrapper tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-[0-9]*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload darwin-arm64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-darwin-arm64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-darwin-arm64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload darwin-x64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-darwin-x64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-darwin-x64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-x64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-linux-x64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-linux-x64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-arm64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-linux-arm64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-linux-arm64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-musl-x64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-linux-musl-x64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-linux-musl-x64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-musl-arm64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-linux-musl-arm64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-linux-musl-arm64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload win32-x64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-win32-x64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-win32-x64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload win32-arm64 tgz
+        uses: actions/upload-artifact@v7
+        with:
+          name: sass-embedded-go-win32-arm64-tgz
+          path: embedded-host-node-go/npm-tgzs/sass-embedded-go-win32-arm64-*.tgz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-x64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-linux-x64
+          path: release-archives/go-sass-*-linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-arm64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-linux-arm64
+          path: release-archives/go-sass-*-linux-arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-musl-x64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-linux-musl-x64
+          path: release-archives/go-sass-*-linux-musl-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload linux-musl-arm64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-linux-musl-arm64
+          path: release-archives/go-sass-*-linux-musl-arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload macos-arm64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-macos-arm64
+          path: release-archives/go-sass-*-macos-arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload macos-x64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-macos-x64
+          path: release-archives/go-sass-*-macos-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload windows-x64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-windows-x64
+          path: release-archives/go-sass-*-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload windows-arm64 binary archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-windows-arm64
+          path: release-archives/go-sass-*-windows-arm64.zip
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Upload checksums
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-sass-release-checksums
+          path: release-archives/go-sass-*-checksums.txt
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Check dist manifest version matches tag
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: embedded-host-node-go
+        run: |
+          ver=$(node -p "require('./package.dist.json').version")
+          full="${GITHUB_REF_NAME#v}"
+          if [ "$ver" != "$full" ]; then
+            echo "dist manifest version $ver != tag version $full"
+            exit 1
+          fi
+      - name: Create draft release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # Prerelease tags (a `-` suffix) stay off `latest`: the release
+          # opens as draft either way — edit notes, publish when ready.
+          # Skip creation when re-running: the release already exists and
+          # upload --clobber refreshes its assets below.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists"
+          elif [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            gh release create "$GITHUB_REF_NAME" --draft --prerelease --generate-notes
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --latest --generate-notes
+          fi
+      - name: Attest release archives
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@v4
+        with:
+          subject-path: release-archives/*
+      - name: Attach archives and tarballs to release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: embedded-host-node-go
+        run: gh release upload "$GITHUB_REF_NAME" ../release-archives/* npm-tgzs/*.tgz --clobber
+      - name: npm publish (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        working-directory: embedded-host-node-go
+        run: |
+          # Prerelease tags publish under `next`, finals under `latest`
+          # (derived from the `-` in the tag, not gated).
+          tag_args=""
+          case "$GITHUB_REF_NAME" in *"-"*) tag_args="--tag next";; esac
+          for triple in darwin-arm64 darwin-x64 linux-x64 linux-arm64 linux-musl-x64 linux-musl-arm64 win32-x64 win32-arm64; do
+            # publish reads package.json from cwd (--prefix does not switch it)
+            # NOTE: $tag_args is intentionally unquoted (empty or --tag next).
+            # shellcheck disable=SC2086
+            (cd "platform/$triple" && npm publish --provenance $tag_args)
+          done
+          # shellcheck disable=SC2086
+          npm publish --provenance $tag_args ./dist

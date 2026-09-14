@@ -1,0 +1,5 @@
+@mixin rounded($r) {
+  border-radius: $r;
+}
+
+.box { @include rounded(4px); }

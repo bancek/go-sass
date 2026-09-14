@@ -1,0 +1,2 @@
+@mixin my-mixin {color: red;} a
+ {@include my-mixin;}

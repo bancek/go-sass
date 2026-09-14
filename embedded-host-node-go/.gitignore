@@ -1,0 +1,4 @@
+dist/
+platform/
+npm-tgzs/
+node_modules/

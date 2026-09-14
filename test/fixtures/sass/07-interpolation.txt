@@ -1,0 +1,2 @@
+$name: sidebar; .#{$name}
+ {width: 200px;}
