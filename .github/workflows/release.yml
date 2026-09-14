@@ -146,10 +146,8 @@ jobs:
         shell: bash
     permissions:
       contents: write # Tags: create the draft release + `gh release upload`
-      # TODO enable on publish day (npm trusted publishing needs
-      # registry-url + OIDC; attestation needs the bundle endpoint)
-      # id-token: write # Tags: npm trusted publishing + artifact attestation
-      # attestations: write # Tags: attests the release archives
+      id-token: write # Tags: npm trusted publishing + artifact attestation
+      attestations: write # Tags: attests the release archives
     steps:
       - uses: actions/checkout@v7
         with:
