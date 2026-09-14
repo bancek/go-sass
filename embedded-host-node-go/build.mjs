@@ -177,6 +177,10 @@ for (const name of assembledTriples) {
     name: `sass-embedded-go-${name}`,
     version: wrapperVersion,
     description: `go-sass embedded compiler binary (${name}).`,
+    repository: {
+      type: 'git',
+      url: 'git+https://github.com/bancek/go-sass.git',
+    },
     license: 'MIT',
     os: [t.os],
     cpu: [t.cpu],

@@ -2,6 +2,10 @@
   "name": "sass-embedded-go",
   "version": "1.104.0-alpha1",
   "description": "sass-embedded-compatible host API backed by the go-sass embedded compiler.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bancek/go-sass.git"
+  },
   "license": "MIT",
   "main": "lib/index.js",
   "types": "types/index.d.ts",
