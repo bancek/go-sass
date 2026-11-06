@@ -171,8 +171,6 @@ func NewScssParser(contents []byte, url *goUrl.URL, parseSelectors bool) *ScssPa
 					return nil, err
 				}
 				return children, nil
-			case -1:
-				return nil, p.scanner.Error("expected \"}\".", -1, 0)
 			default:
 				stmt, err := child()
 				if err != nil {

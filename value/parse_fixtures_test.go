@@ -18,8 +18,6 @@ func loadFixture(t *testing.T, name string) (input []byte, want string) {
 	switch {
 	case strings.HasPrefix(name, "css/"):
 		ext = ".css"
-	case strings.HasPrefix(name, "sass/"):
-		ext = ".sass"
 	default:
 		ext = ".scss"
 	}
@@ -40,11 +38,6 @@ func loadFixture(t *testing.T, name string) (input []byte, want string) {
 func scssFixtures(t *testing.T) []string {
 	t.Helper()
 	return listFixtures(t, "scss")
-}
-
-func sassFixtures(t *testing.T) []string {
-	t.Helper()
-	return listFixtures(t, "sass")
 }
 
 func cssFixtures(t *testing.T) []string {

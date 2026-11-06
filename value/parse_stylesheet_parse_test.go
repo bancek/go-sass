@@ -1,6 +1,7 @@
 package value
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -68,6 +69,30 @@ func TestParseSimpleVar(t *testing.T) {
 	}
 	if len(ss.GetChildren()) != 1 {
 		t.Fatalf("children len = %d, want 1", len(ss.GetChildren()))
+	}
+}
+
+func TestParseScssEmptyStyleRuleSelector(t *testing.T) {
+	for _, src := range []string{"div {", "{", "öüäöüäöü{a:c"} {
+		p := newTestScssParser(src)
+		_, err := p.Parse()
+		if err == nil {
+			t.Fatalf("%q: expected error", src)
+		}
+		var formatErr *sasscommon.SassFormatException
+		if !errors.As(err, &formatErr) {
+			t.Fatalf("%q: error type = %T, want *sasscommon.SassFormatException", src, err)
+		}
+		if formatErr.Message != "expected end of rule." {
+			t.Errorf("%q: message = %q, want %q", src, formatErr.Message, "expected end of rule.")
+		}
+		spanText, spanErr := formatErr.Span.SpanText()
+		if spanErr != nil {
+			t.Fatal(spanErr)
+		}
+		if spanText != "" {
+			t.Errorf("%q: span = %q, want empty", src, spanText)
+		}
 	}
 }
 

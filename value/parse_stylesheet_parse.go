@@ -962,9 +962,6 @@ func (p *StylesheetParser) styleRule(buffer *InterpolationBuffer, start_ *sassco
 	if err != nil {
 		return nil, err
 	}
-	if interpolation == nil {
-		return nil, nil
-	}
 	if buffer != nil {
 		buffer.AddInterpolation(interpolation)
 		var bufErr error
@@ -985,7 +982,21 @@ func (p *StylesheetParser) styleRule(buffer *InterpolationBuffer, start_ *sassco
 		}
 	}
 	if len(interpolation.Contents) == 0 {
-		return nil, p.scanner.Error("expected \"}\".", -1, 0)
+		opts := declarationValueOptsDefaults()
+		opts.allowEmpty = true
+		opts.allowOpenBrace = false
+		unknown, err := p.interpolatedDeclarationValue(opts)
+		if err != nil {
+			return nil, err
+		}
+		if len(unknown.Contents) == 0 {
+			return nil, p.scanner.Error("expected end of rule.", -1, 0)
+		}
+		span, err := unknown.Span()
+		if err != nil {
+			return nil, err
+		}
+		return nil, p.error("unrecognized syntax", span, nil)
 	}
 
 	return p.withStyleRuleChildren(interpolation, start, func(children []Statement, span sasscommon.FileSpan) *StyleRule {

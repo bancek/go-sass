@@ -12,6 +12,7 @@ import (
 	"fmt"
 	goUrl "net/url"
 	"strings"
+	"unicode"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
@@ -102,25 +103,19 @@ func NewSassParser(contents []byte, url *goUrl.URL, parseSelectors bool) *SassPa
 			if err != nil {
 				return nil, err
 			}
-			if val == nil {
-				break
-			}
 			buffer.AddInterpolation(val)
-			buffer.WriteCharCode('\n')
-			trailing := strings.TrimRight(buffer.TrailingString(), " \t\r\n")
-			if !strings.HasSuffix(trailing, ",") {
-				break
+			trailing := strings.TrimRightFunc(buffer.TrailingString(), unicode.IsSpace)
+			if strings.HasSuffix(trailing, ",") {
+				ok, err := p.scanCharIf(func(ch int) bool { return util.IsNewline(ch) })
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					buffer.WriteCharCode('\n')
+					continue
+				}
 			}
-			ok, err := p.scanCharIf(func(ch int) bool { return util.IsNewline(ch) })
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
-				break
-			}
-		}
-		if buffer.IsEmpty() {
-			return nil, nil
+			break
 		}
 		span, err := p.spanFrom(start)
 		if err != nil {

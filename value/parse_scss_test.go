@@ -1,6 +1,7 @@
 package value
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -215,13 +216,17 @@ func TestScssChildrenSemicolon(t *testing.T) {
 	}
 }
 
-func TestScssChildrenMissingBrace(t *testing.T) {
+func TestScssChildrenDelegatesAtEOF(t *testing.T) {
+	// Dart's ScssParser.children has no EOF arm: at EOF it calls the child
+	// parser, which reports the missing "}" (or the real syntax error). Assert
+	// that delegation rather than looping on a nil child result.
 	p := newTestScssParserForTest("{")
+	sentinel := errors.New("child reached EOF")
 	_, err := p.children(func() (Statement, error) {
-		return nil, nil
+		return nil, sentinel
 	})
-	if err == nil {
-		t.Fatal("expected error for missing }")
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("err = %v, want %v", err, sentinel)
 	}
 }
 
