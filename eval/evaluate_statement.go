@@ -2348,32 +2348,24 @@ func (v *EvaluateVisitor) warnForBogusCombinators(rule value.CssStyleRule) error
 		}
 		trimmed := strings.TrimSpace(cs)
 		if complex.IsUseless() {
-			trimmedSpan, err := compSpan.TrimRight()
-			if err != nil {
-				return err
-			}
 			if err := v.warn(
 				fmt.Sprintf(`The selector "%s" is invalid CSS. It will be omitted from the generated CSS.
 This will be an error in Dart Sass 2.0.0.
 
 More info: https://sass-lang.com/d/bogus-combinators`, trimmed),
-				trimmedSpan,
+				compSpan,
 				deprecation.BogusCombinators,
 			); err != nil {
 				return err
 			}
 		} else if len(complex.LeadingCombinators) > 0 {
 			if v.stylesheet == nil || !v.stylesheet.IsPlainCss() {
-				trimmedSpan, err := compSpan.TrimRight()
-				if err != nil {
-					return err
-				}
 				if err := v.warn(
 					fmt.Sprintf(`The selector "%s" is invalid CSS.
 This will be an error in Dart Sass 2.0.0.
 
 More info: https://sass-lang.com/d/bogus-combinators`, trimmed),
-					trimmedSpan,
+					compSpan,
 					deprecation.BogusCombinators,
 				); err != nil {
 					return err
@@ -2395,11 +2387,7 @@ have children other than style rules.`, trimmed)
 				}
 				secondarySpans = sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: childSpan, Label: "this is not a style rule"})
 			}
-			trimmedSpan3, err := compSpan.TrimRight()
-			if err != nil {
-				return err
-			}
-			span := sasscommon.NewMultiSpanFileSpan(trimmedSpan3, "invalid selector", secondarySpans)
+			span := sasscommon.NewMultiSpanFileSpan(compSpan, "invalid selector", secondarySpans)
 			if err := v.warn(msg, span, deprecation.BogusCombinators); err != nil {
 				return err
 			}
@@ -3114,11 +3102,7 @@ func (v *EvaluateVisitor) VisitExtendRule(stmt *value.ExtendRule) (value.Value, 
 			strings.TrimSpace(cs),
 			map[bool]string{true: "can't", false: "shouldn't"}[complex.IsUseless()],
 		)
-		trimmed, err := compSpan2.TrimRight()
-		if err != nil {
-			return nil, err
-		}
-		if err := v.warn(msg, sasscommon.NewMultiSpanFileSpan(trimmed, "invalid selector", sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: stmtSpan9, Label: "@extend rule"})), deprecation.BogusCombinators); err != nil {
+		if err := v.warn(msg, sasscommon.NewMultiSpanFileSpan(compSpan2, "invalid selector", sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: stmtSpan9, Label: "@extend rule"})), deprecation.BogusCombinators); err != nil {
 			return nil, err
 		}
 	}

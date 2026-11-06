@@ -1147,3 +1147,82 @@ func TestScannerErrorPropagation(t *testing.T) {
 		t.Error("expected error for . without identifier")
 	}
 }
+
+// Matches Dart 2ac45157: SelectorList, ComplexSelector, and
+// ComplexSelectorComponent spans exclude trailing whitespace.
+func TestSelectorSpansExcludeTrailingWhitespace(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		list       string
+		complex    string
+		components []string
+	}{
+		{
+			name:       "single compound",
+			input:      ".a  ",
+			list:       ".a",
+			complex:    ".a",
+			components: []string{".a"},
+		},
+		{
+			name:    "combinator",
+			input:   "a > b  ",
+			list:    "a > b",
+			complex: "a > b",
+			// Dart keeps componentStart at the start of the complex selector,
+			// so each later component span covers the selector prefix.
+			components: []string{"a >", "a > b"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newTestSelectorParser(tt.input)
+			list, err := p.Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
+			listSpan, err := list.Span()
+			if err != nil {
+				t.Fatal(err)
+			}
+			listText, err := listSpan.SpanText()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if listText != tt.list {
+				t.Errorf("SelectorList span = %q, want %q", listText, tt.list)
+			}
+
+			if len(list.Components) != 1 {
+				t.Fatalf("expected 1 complex selector, got %d", len(list.Components))
+			}
+			complex := list.Components[0]
+			complexSpan, err := complex.Span()
+			if err != nil {
+				t.Fatal(err)
+			}
+			complexText, err := complexSpan.SpanText()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if complexText != tt.complex {
+				t.Errorf("ComplexSelector span = %q, want %q", complexText, tt.complex)
+			}
+
+			if len(complex.Components) != len(tt.components) {
+				t.Fatalf("expected %d components, got %d", len(tt.components), len(complex.Components))
+			}
+			for i, want := range tt.components {
+				got, err := complex.Components[i].Span.SpanText()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != want {
+					t.Errorf("component %d span = %q, want %q", i, got, want)
+				}
+			}
+		})
+	}
+}

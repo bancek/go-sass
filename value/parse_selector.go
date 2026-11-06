@@ -249,6 +249,10 @@ func (p *SelectorParser) _selectorList() (*SelectorList, error) {
 	if err != nil {
 		return nil, err
 	}
+	span, err = span.TrimRight()
+	if err != nil {
+		return nil, err
+	}
 	result, err := NewSelectorList(components, span)
 	if err != nil {
 		return nil, err
@@ -331,6 +335,10 @@ func (p *SelectorParser) _complexSelector(lineBreak bool) (*ComplexSelector, err
 				if err != nil {
 					return nil, err
 				}
+				componentSpan, err = componentSpan.TrimRight()
+				if err != nil {
+					return nil, err
+				}
 				components = append(components, NewComplexSelectorComponent(lastCompound, combinators, componentSpan))
 			} else if len(combinators) > 0 {
 				initialCombinators = combinators
@@ -402,6 +410,10 @@ done:
 		if err != nil {
 			return nil, err
 		}
+		componentSpan, err = componentSpan.TrimRight()
+		if err != nil {
+			return nil, err
+		}
 		components = append(components, NewComplexSelectorComponent(lastCompound, combinators, componentSpan))
 	} else if len(combinators) > 0 {
 		initialCombinators = combinators
@@ -410,6 +422,10 @@ done:
 	}
 
 	span, err := p.spanFrom(start)
+	if err != nil {
+		return nil, err
+	}
+	span, err = span.TrimRight()
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,7 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `61ab7025b90012161540afa7cf5757b88633aeb2` (2026-09-28, `PORTED_FROM`) |
+| dart-sass commit    | `2ac45157135726623bf010d75559cd659a953737` (2026-09-29, `PORTED_FROM`) |
 | dart-sass version   | 1.105.1                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
@@ -45,7 +45,7 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `61ab7025` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `dart-sass`          | `2ac45157` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
 | `sass-spec`          | `49bf57ed`                   | the spec suite expectations                                                               |
 | `sass`               | `88142a47`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
