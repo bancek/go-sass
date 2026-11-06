@@ -10,6 +10,26 @@ import (
 	"github.com/bancek/go-sass/sassio"
 )
 
+func TestCompileRepeatedUseComments(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "_other.scss"), []byte("a {b: c}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	source := "/* before */\n@use \"other\" as *;\n/* between */\n@use \"other\" as *;\n/* after */\n"
+	result, err := CompileString(source, sassio.NewDefaultIO(), &CompileOptions{
+		LoadPaths: []string{dir},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "/* before */\na {\n  b: c;\n}\n\n/* between */\n/* after */"
+	if got := result.CSS(); got != want {
+		t.Errorf("CSS mismatch\nwant:\n%s\ngot:\n%s", want, got)
+	}
+}
+
 func TestCompileBasic(t *testing.T) {
 	result, err := CompileString(`a { color: red; }`, sassio.NewDefaultIO(), nil)
 	if err != nil {

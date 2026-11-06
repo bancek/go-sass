@@ -607,18 +607,28 @@ func (v *EvaluateVisitor) combineCss(root sassmodule.Module, clone bool) (*value
 			}
 		}
 
+		seenUpstream := make(map[sassmodule.Module]struct{})
 		for _, upstream := range module.Upstream() {
-			if upstream.TransitivelyContainsCss() {
-				if comments, ok := module.PreModuleComments()[upstream]; ok {
-					if len(css) == 0 {
-						imports = append(imports, cssCommentSliceToCssNode(comments)...)
-					} else {
-						css = append(css, cssCommentSliceToCssNode(comments)...)
-					}
+			if !upstream.TransitivelyContainsCss() {
+				continue
+			}
+
+			// A downstream module can load the same upstream module multiple
+			// times, but we only track pre-module comments for the first load.
+			if _, ok := seenUpstream[upstream]; ok {
+				continue
+			}
+			seenUpstream[upstream] = struct{}{}
+
+			if comments, ok := module.PreModuleComments()[upstream]; ok {
+				if len(css) == 0 {
+					imports = append(imports, cssCommentSliceToCssNode(comments)...)
+				} else {
+					css = append(css, cssCommentSliceToCssNode(comments)...)
 				}
-				if err := visitModule(upstream); err != nil {
-					return err
-				}
+			}
+			if err := visitModule(upstream); err != nil {
+				return err
 			}
 		}
 
