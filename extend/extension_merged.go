@@ -53,7 +53,13 @@ func MergeExtensions(left, right Extension) (Extension, error) {
 
 	if left.MediaContext() != nil && right.MediaContext() != nil &&
 		!mediaQueriesEqual(left.MediaContext(), right.MediaContext()) {
+		leftContext := left.MediaContext()
+		rightContext := right.MediaContext()
 		leftSpan, err := left.Span()
+		if err != nil {
+			return nil, err
+		}
+		leftContextSpan, err := leftContext[len(leftContext)-1].Span()
 		if err != nil {
 			return nil, err
 		}
@@ -61,18 +67,19 @@ func MergeExtensions(left, right Extension) (Extension, error) {
 		if err != nil {
 			return nil, err
 		}
-		leftURL, err := leftSpan.SourceURL()
+		rightContextSpan, err := rightContext[len(rightContext)-1].Span()
 		if err != nil {
 			return nil, err
 		}
-		leftStart, err := leftSpan.StartLocation()
-		if err != nil {
-			return nil, err
-		}
-		return nil, &sasscommon.SassException{
-			Message: fmt.Sprintf("From line %d, column %d of %s: \nYou may not @extend the same selector from within different media queries.",
-				leftStart.Line+1, leftStart.Column+1, sasscommon.PrettyUri(leftURL)),
-			Span: rightSpan,
+		return nil, &sasscommon.MultiSpanSassException{
+			Message:      "You may not @extend the same selector from within different media queries.",
+			Span:         rightSpan,
+			PrimaryLabel: "second extension",
+			Secondary: sasscommon.NewSecondarySpans(
+				sasscommon.SecondarySpan{Span: rightContextSpan, Label: "second extension @media"},
+				sasscommon.SecondarySpan{Span: leftSpan, Label: "first extension"},
+				sasscommon.SecondarySpan{Span: leftContextSpan, Label: "first extension @media"},
+			),
 		}
 	}
 

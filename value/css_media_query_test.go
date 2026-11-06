@@ -3,13 +3,15 @@ package value
 import (
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sasscommon"
 )
 
 // ---- Constructor tests ----
 
 func TestNewCssMediaQueryTypeBasic(t *testing.T) {
 	typ := "screen"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 
 	if q.Modifier != nil {
 		t.Error("expected nil modifier")
@@ -25,10 +27,75 @@ func TestNewCssMediaQueryTypeBasic(t *testing.T) {
 	}
 }
 
+func TestCssMediaQuerySpan(t *testing.T) {
+	span := cssSpan()
+	typ := "screen"
+	q := NewCssMediaQueryType(&typ, span, nil, nil)
+	got, err := q.Span()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != span {
+		t.Errorf("Span() = %v, want %v", got, span)
+	}
+
+	cond, err := NewCssMediaQueryCondition([]string{"(color)"}, span, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = cond.Span()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != span {
+		t.Errorf("condition Span() = %v, want %v", got, span)
+	}
+}
+
+func TestCssMediaQueryMergeKeepsSpan(t *testing.T) {
+	span := cssSpan()
+
+	condition, err := NewCssMediaQueryCondition([]string{"(color)"}, span, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherCondition, err := NewCssMediaQueryCondition([]string{"(grid)"}, sasscommon.BogusSpan, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, ok := condition.Merge(otherCondition).(*MediaQuerySuccessfulMergeResult)
+	if !ok {
+		t.Fatalf("condition Merge() = %T, want success", condition.Merge(otherCondition))
+	}
+	got, err := merged.Query.Span()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != span {
+		t.Errorf("condition merged Span() = %v, want %v", got, span)
+	}
+
+	typ := "screen"
+	typed := NewCssMediaQueryType(&typ, span, nil, nil)
+	all := "all"
+	otherTyped := NewCssMediaQueryType(&all, sasscommon.BogusSpan, nil, nil)
+	merged, ok = typed.Merge(otherTyped).(*MediaQuerySuccessfulMergeResult)
+	if !ok {
+		t.Fatalf("typed Merge() = %T, want success", typed.Merge(otherTyped))
+	}
+	got, err = merged.Query.Span()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != span {
+		t.Errorf("typed merged Span() = %v, want %v", got, span)
+	}
+}
+
 func TestNewCssMediaQueryTypeWithModifier(t *testing.T) {
 	typ := "screen"
 	mod := "only"
-	q := NewCssMediaQueryType(&typ, &mod, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, &mod, nil)
 
 	if q.Modifier == nil || *q.Modifier != "only" {
 		t.Errorf("expected modifier 'only', got %v", q.Modifier)
@@ -41,7 +108,7 @@ func TestNewCssMediaQueryTypeWithModifier(t *testing.T) {
 func TestNewCssMediaQueryTypeWithConditions(t *testing.T) {
 	typ := "screen"
 	conditions := []string{"(min-width: 700px)", "(color)"}
-	q := NewCssMediaQueryType(&typ, nil, conditions)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, conditions)
 
 	if len(q.Conditions) != 2 {
 		t.Fatalf("expected 2 conditions, got %d", len(q.Conditions))
@@ -60,7 +127,7 @@ func TestNewCssMediaQueryTypeWithConditions(t *testing.T) {
 }
 
 func TestNewCssMediaQueryConditionSingle(t *testing.T) {
-	q, err := NewCssMediaQueryCondition([]string{"(color)"}, nil)
+	q, err := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +148,7 @@ func TestNewCssMediaQueryConditionSingle(t *testing.T) {
 
 func TestNewCssMediaQueryConditionMultiWithConjunction(t *testing.T) {
 	c := true
-	q, err := NewCssMediaQueryCondition([]string{"(color)", "(min-width: 700px)"}, &c)
+	q, err := NewCssMediaQueryCondition([]string{"(color)", "(min-width: 700px)"}, sasscommon.BogusSpan, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +163,7 @@ func TestNewCssMediaQueryConditionMultiWithConjunction(t *testing.T) {
 
 func TestNewCssMediaQueryConditionMultiDisjunction(t *testing.T) {
 	c := false
-	q, err := NewCssMediaQueryCondition([]string{"(color)", "(monochrome)"}, &c)
+	q, err := NewCssMediaQueryCondition([]string{"(color)", "(monochrome)"}, sasscommon.BogusSpan, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +174,7 @@ func TestNewCssMediaQueryConditionMultiDisjunction(t *testing.T) {
 }
 
 func TestNewCssMediaQueryConditionMultiNilConjunctionError(t *testing.T) {
-	_, err := NewCssMediaQueryCondition([]string{"(a)", "(b)"}, nil)
+	_, err := NewCssMediaQueryCondition([]string{"(a)", "(b)"}, sasscommon.BogusSpan, nil)
 	if err == nil {
 		t.Fatal("expected error for multi-condition with nil conjunction")
 	}
@@ -119,7 +186,7 @@ func TestNewCssMediaQueryConditionMultiNilConjunctionError(t *testing.T) {
 // ---- MatchesAllTypes tests ----
 
 func TestMatchesAllTypesNilType(t *testing.T) {
-	q, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
+	q, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
 	if !q.MatchesAllTypes() {
 		t.Error("nil type should match all types")
 	}
@@ -127,7 +194,7 @@ func TestMatchesAllTypesNilType(t *testing.T) {
 
 func TestMatchesAllTypesAllLower(t *testing.T) {
 	typ := "all"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 	if !q.MatchesAllTypes() {
 		t.Error("'all' type should match all types")
 	}
@@ -135,7 +202,7 @@ func TestMatchesAllTypesAllLower(t *testing.T) {
 
 func TestMatchesAllTypesAllUpper(t *testing.T) {
 	typ := "ALL"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 	if !q.MatchesAllTypes() {
 		t.Error("'ALL' type should match all types (case-insensitive)")
 	}
@@ -143,7 +210,7 @@ func TestMatchesAllTypesAllUpper(t *testing.T) {
 
 func TestMatchesAllTypesAllMixed(t *testing.T) {
 	typ := "aLl"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 	if !q.MatchesAllTypes() {
 		t.Error("'aLl' type should match all types (case-insensitive)")
 	}
@@ -151,7 +218,7 @@ func TestMatchesAllTypesAllMixed(t *testing.T) {
 
 func TestMatchesAllTypesScreen(t *testing.T) {
 	typ := "screen"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 	if q.MatchesAllTypes() {
 		t.Error("'screen' should not match all types")
 	}
@@ -161,7 +228,7 @@ func TestMatchesAllTypesScreen(t *testing.T) {
 
 func TestStringTypeOnly(t *testing.T) {
 	typ := "screen"
-	q := NewCssMediaQueryType(&typ, nil, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, nil)
 	got := q.String()
 	if got != "screen" {
 		t.Errorf("String() = %q, want 'screen'", got)
@@ -171,7 +238,7 @@ func TestStringTypeOnly(t *testing.T) {
 func TestStringModifierType(t *testing.T) {
 	typ := "screen"
 	mod := "only"
-	q := NewCssMediaQueryType(&typ, &mod, nil)
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, &mod, nil)
 	got := q.String()
 	if got != "only screen" {
 		t.Errorf("String() = %q, want 'only screen'", got)
@@ -180,7 +247,7 @@ func TestStringModifierType(t *testing.T) {
 
 func TestStringTypeAndConditions(t *testing.T) {
 	typ := "screen"
-	q := NewCssMediaQueryType(&typ, nil, []string{"(min-width: 700px)", "(color)"})
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(min-width: 700px)", "(color)"})
 	got := q.String()
 	if got != "screen and (min-width: 700px) and (color)" {
 		t.Errorf("String() = %q, want 'screen and (min-width: 700px) and (color)'", got)
@@ -190,7 +257,7 @@ func TestStringTypeAndConditions(t *testing.T) {
 func TestStringModifierTypeAndConditions(t *testing.T) {
 	typ := "screen"
 	mod := "not"
-	q := NewCssMediaQueryType(&typ, &mod, []string{"(color)"})
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, &mod, []string{"(color)"})
 	got := q.String()
 	if got != "not screen and (color)" {
 		t.Errorf("String() = %q, want 'not screen and (color)'", got)
@@ -199,7 +266,7 @@ func TestStringModifierTypeAndConditions(t *testing.T) {
 
 func TestStringConditionsOnlyAnd(t *testing.T) {
 	c := true
-	q, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)", "(color)"}, &c)
+	q, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)", "(color)"}, sasscommon.BogusSpan, &c)
 	got := q.String()
 	if got != "(min-width: 700px) and (color)" {
 		t.Errorf("String() = %q, want '(min-width: 700px) and (color)'", got)
@@ -208,7 +275,7 @@ func TestStringConditionsOnlyAnd(t *testing.T) {
 
 func TestStringConditionsOnlyOr(t *testing.T) {
 	c := false
-	q, _ := NewCssMediaQueryCondition([]string{"(color)", "(monochrome)"}, &c)
+	q, _ := NewCssMediaQueryCondition([]string{"(color)", "(monochrome)"}, sasscommon.BogusSpan, &c)
 	got := q.String()
 	if got != "(color) or (monochrome)" {
 		t.Errorf("String() = %q, want '(color) or (monochrome)'", got)
@@ -216,7 +283,7 @@ func TestStringConditionsOnlyOr(t *testing.T) {
 }
 
 func TestStringSingleCondition(t *testing.T) {
-	q, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
+	q, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
 	got := q.String()
 	if got != "(color)" {
 		t.Errorf("String() = %q, want '(color)'", got)
@@ -235,8 +302,8 @@ func TestStringEmpty(t *testing.T) {
 
 func TestMediaQueriesEqualIdentical(t *testing.T) {
 	typ := "screen"
-	a := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
+	a := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
 
 	if !MediaQueriesEqual(a, b) {
 		t.Error("identical queries should be equal")
@@ -246,8 +313,8 @@ func TestMediaQueriesEqualIdentical(t *testing.T) {
 func TestMediaQueriesEqualDifferentType(t *testing.T) {
 	screen := "screen"
 	print := "print"
-	a := NewCssMediaQueryType(&screen, nil, nil)
-	b := NewCssMediaQueryType(&print, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
+	b := NewCssMediaQueryType(&print, sasscommon.BogusSpan, nil, nil)
 
 	if MediaQueriesEqual(a, b) {
 		t.Error("queries with different types should not be equal")
@@ -256,8 +323,8 @@ func TestMediaQueriesEqualDifferentType(t *testing.T) {
 
 func TestMediaQueriesEqualOneNilType(t *testing.T) {
 	screen := "screen"
-	a := NewCssMediaQueryType(&screen, nil, nil)
-	b, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
+	b, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
 
 	if MediaQueriesEqual(a, b) {
 		t.Error("query with type vs nil type should not be equal")
@@ -265,8 +332,8 @@ func TestMediaQueriesEqualOneNilType(t *testing.T) {
 }
 
 func TestMediaQueriesEqualBothNilType(t *testing.T) {
-	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
-	b, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
+	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
+	b, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
 
 	if !MediaQueriesEqual(a, b) {
 		t.Error("both nil type with same conditions should be equal")
@@ -274,8 +341,8 @@ func TestMediaQueriesEqualBothNilType(t *testing.T) {
 }
 
 func TestMediaQueriesEqualDifferentConditions(t *testing.T) {
-	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
-	b, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)"}, nil)
+	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
+	b, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)"}, sasscommon.BogusSpan, nil)
 
 	if MediaQueriesEqual(a, b) {
 		t.Error("different conditions should not be equal")
@@ -284,8 +351,8 @@ func TestMediaQueriesEqualDifferentConditions(t *testing.T) {
 
 func TestMediaQueriesEqualDifferentConditionOrder(t *testing.T) {
 	typ := "screen"
-	a := NewCssMediaQueryType(&typ, nil, []string{"(color)", "(grid)"})
-	b := NewCssMediaQueryType(&typ, nil, []string{"(grid)", "(color)"})
+	a := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)", "(grid)"})
+	b := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(grid)", "(color)"})
 
 	if MediaQueriesEqual(a, b) {
 		t.Error("different condition order should not be equal")
@@ -294,7 +361,7 @@ func TestMediaQueriesEqualDifferentConditionOrder(t *testing.T) {
 
 func TestMediaQueriesEqualIgnoresConjunction(t *testing.T) {
 	typ := "screen"
-	a := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
+	a := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
 	b := &CssMediaQuery{
 		Type:        &typ,
 		Conjunction: false,
@@ -310,8 +377,8 @@ func TestMediaQueriesEqualIgnoresConjunction(t *testing.T) {
 
 func TestHashCodeEqualQueries(t *testing.T) {
 	typ := "screen"
-	a := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
+	a := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
 
 	if a.HashCode() != b.HashCode() {
 		t.Errorf("equal queries should have same hash: %d vs %d", a.HashCode(), b.HashCode())
@@ -320,7 +387,7 @@ func TestHashCodeEqualQueries(t *testing.T) {
 
 func TestHashCodeStable(t *testing.T) {
 	typ := "screen"
-	q := NewCssMediaQueryType(&typ, nil, []string{"(color)"})
+	q := NewCssMediaQueryType(&typ, sasscommon.BogusSpan, nil, []string{"(color)"})
 	h1 := q.HashCode()
 	h2 := q.HashCode()
 	if h1 != h2 {
@@ -331,8 +398,8 @@ func TestHashCodeStable(t *testing.T) {
 // ---- Merge tests ----
 
 func TestMergeBothNilType(t *testing.T) {
-	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)
-	b, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)"}, nil)
+	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil)
+	b, _ := NewCssMediaQueryCondition([]string{"(min-width: 700px)"}, sasscommon.BogusSpan, nil)
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -350,8 +417,8 @@ func TestMergeBothNilType(t *testing.T) {
 func TestMergeOneNotOneNormalSameTypeSubset(t *testing.T) {
 	screen := "screen"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, nil, []string{"(color)", "(grid)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(color)", "(grid)"})
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultEmpty {
@@ -362,8 +429,8 @@ func TestMergeOneNotOneNormalSameTypeSubset(t *testing.T) {
 func TestMergeOneNotOneNormalSameTypeNoSubset(t *testing.T) {
 	screen := "screen"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, nil, []string{"(grid)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(grid)"})
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultUnrepresentable {
@@ -375,8 +442,8 @@ func TestMergeOneNotOneNormalBothMatchAll(t *testing.T) {
 	all := "all"
 	not := "not"
 	screen := "screen"
-	a := NewCssMediaQueryType(&all, &not, nil)
-	b := NewCssMediaQueryType(&screen, nil, nil)
+	a := NewCssMediaQueryType(&all, sasscommon.BogusSpan, &not, nil)
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultUnrepresentable {
@@ -388,8 +455,8 @@ func TestMergeOneNotOneNormalDifferentTypes(t *testing.T) {
 	screen := "screen"
 	print := "print"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, nil)
-	b := NewCssMediaQueryType(&print, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, nil)
+	b := NewCssMediaQueryType(&print, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -407,8 +474,8 @@ func TestMergeOneNotOneNormalDifferentTypes(t *testing.T) {
 func TestMergeBothNotSameTypeSuperset(t *testing.T) {
 	screen := "screen"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, []string{"(color)", "(grid)"})
-	b := NewCssMediaQueryType(&screen, &not, []string{"(color)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(color)", "(grid)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(color)"})
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -423,8 +490,8 @@ func TestMergeBothNotSameTypeSuperset(t *testing.T) {
 func TestMergeBothNotSameTypeNoSuperset(t *testing.T) {
 	screen := "screen"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, &not, []string{"(grid)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, []string{"(grid)"})
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultUnrepresentable {
@@ -436,8 +503,8 @@ func TestMergeBothNotDifferentTypes(t *testing.T) {
 	screen := "screen"
 	print := "print"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, nil)
-	b := NewCssMediaQueryType(&print, &not, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, nil)
+	b := NewCssMediaQueryType(&print, sasscommon.BogusSpan, &not, nil)
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultUnrepresentable {
@@ -448,8 +515,8 @@ func TestMergeBothNotDifferentTypes(t *testing.T) {
 func TestMergeFirstMatchesAllTypes(t *testing.T) {
 	all := "all"
 	screen := "screen"
-	a := NewCssMediaQueryType(&all, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, nil, []string{"(grid)"})
+	a := NewCssMediaQueryType(&all, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(grid)"})
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -467,8 +534,8 @@ func TestMergeFirstMatchesAllTypes(t *testing.T) {
 func TestMergeSecondMatchesAllTypes(t *testing.T) {
 	screen := "screen"
 	all := "all"
-	a := NewCssMediaQueryType(&screen, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&all, nil, []string{"(grid)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&all, sasscommon.BogusSpan, nil, []string{"(grid)"})
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -483,8 +550,8 @@ func TestMergeSecondMatchesAllTypes(t *testing.T) {
 func TestMergeBothAll(t *testing.T) {
 	all1 := "all"
 	all2 := "all"
-	a := NewCssMediaQueryType(&all1, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&all2, nil, []string{"(grid)"})
+	a := NewCssMediaQueryType(&all1, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&all2, sasscommon.BogusSpan, nil, []string{"(grid)"})
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -499,8 +566,8 @@ func TestMergeBothAll(t *testing.T) {
 
 func TestMergeBothAllOneNilType(t *testing.T) {
 	all := "all"
-	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil) // nil type
-	b := NewCssMediaQueryType(&all, nil, []string{"(grid)"})    // "all" type
+	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil) // nil type
+	b := NewCssMediaQueryType(&all, sasscommon.BogusSpan, nil, []string{"(grid)"})    // "all" type
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -515,8 +582,8 @@ func TestMergeBothAllOneNilType(t *testing.T) {
 
 func TestMergeSameTypes(t *testing.T) {
 	screen := "screen"
-	a := NewCssMediaQueryType(&screen, nil, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, nil, []string{"(grid)"})
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, []string{"(grid)"})
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -534,8 +601,8 @@ func TestMergeSameTypes(t *testing.T) {
 func TestMergeDifferentTypes(t *testing.T) {
 	screen := "screen"
 	print := "print"
-	a := NewCssMediaQueryType(&screen, nil, nil)
-	b := NewCssMediaQueryType(&print, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
+	b := NewCssMediaQueryType(&print, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultEmpty {
@@ -544,8 +611,8 @@ func TestMergeDifferentTypes(t *testing.T) {
 }
 
 func TestMergeNonConjunction(t *testing.T) {
-	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, nil)             // conjunction = true
-	b := &CssMediaQuery{Conjunction: false, Conditions: []string{"(grid)"}} // conjunction = false
+	a, _ := NewCssMediaQueryCondition([]string{"(color)"}, sasscommon.BogusSpan, nil) // conjunction = true
+	b := &CssMediaQuery{Conjunction: false, Conditions: []string{"(grid)"}}           // conjunction = false
 
 	result := a.Merge(b)
 	if result != MediaQueryMergeResultUnrepresentable {
@@ -556,8 +623,8 @@ func TestMergeNonConjunction(t *testing.T) {
 func TestMergeCaseInsensitiveTypes(t *testing.T) {
 	screen := "SCREEN"
 	screenLower := "screen"
-	a := NewCssMediaQueryType(&screen, nil, nil)
-	b := NewCssMediaQueryType(&screenLower, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
+	b := NewCssMediaQueryType(&screenLower, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -573,8 +640,8 @@ func TestMergeCaseInsensitiveTypes(t *testing.T) {
 func TestMergeCaseInsensitiveModifier(t *testing.T) {
 	screen := "screen"
 	notMod := "NOT"
-	a := NewCssMediaQueryType(&screen, &notMod, []string{"(color)"})
-	b := NewCssMediaQueryType(&screen, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &notMod, []string{"(color)"})
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	// NOT is treated as "not" after lowercasing; "(color)" is not subset of empty
@@ -588,8 +655,8 @@ func TestMergeBothNotCaseInsensitiveTypes(t *testing.T) {
 	screen := "SCREEN"
 	screenLower := "screen"
 	not := "not"
-	a := NewCssMediaQueryType(&screen, &not, nil)
-	b := NewCssMediaQueryType(&screenLower, &not, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &not, nil)
+	b := NewCssMediaQueryType(&screenLower, sasscommon.BogusSpan, &not, nil)
 
 	result := a.Merge(b)
 	merged, ok := result.(*MediaQuerySuccessfulMergeResult)
@@ -604,8 +671,8 @@ func TestMergeBothNotCaseInsensitiveTypes(t *testing.T) {
 func TestMergeNotVsNormalCaseInsensitiveModifier(t *testing.T) {
 	screen := "screen"
 	notMod := "NOT"
-	a := NewCssMediaQueryType(&screen, &notMod, nil)
-	b := NewCssMediaQueryType(&screen, nil, nil)
+	a := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, &notMod, nil)
+	b := NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
 
 	result := a.Merge(b)
 	// "NOT" lowercased = "not"; both nil conditions → allContained(nil, nil) = true → Empty

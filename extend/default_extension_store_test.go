@@ -662,7 +662,7 @@ func TestDefaultExtensionStoreMediaContext(t *testing.T) {
 	}
 	target := class("b")
 	mediaContext := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	err = store.AddExtension(
 		&value.SelectorList{Components: []*value.ComplexSelector{extender}},

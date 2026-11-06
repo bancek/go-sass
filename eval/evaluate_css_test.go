@@ -409,7 +409,7 @@ func TestVisitCssMediaRuleDeclarationNameError(t *testing.T) {
 	v.declarationName = "color"
 
 	screen := "screen"
-	mq := value.NewCssMediaQueryType(&screen, nil, nil)
+	mq := value.NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
 	mr, _ := value.NewModifiableCssMediaRule([]value.CssMediaQuery{*mq}, testSpan())
 	_, err := v.VisitCssMediaRule(mr)
 	if err == nil {
@@ -592,7 +592,7 @@ func TestImportedCssMediaRuleUnmerged(t *testing.T) {
 	iv := &importedCssVisitor{v: v}
 
 	screen := "screen"
-	mq := value.NewCssMediaQueryType(&screen, nil, nil)
+	mq := value.NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)
 	node, _ := value.NewModifiableCssMediaRule([]value.CssMediaQuery{*mq}, testSpan())
 	_, err := iv.VisitCssMediaRule(node)
 	if err != nil {

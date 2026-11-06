@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sassurl"
 )
 
@@ -22,6 +23,7 @@ import (
 // media type or nil, Conjunction selects all-vs-any condition matching, and
 // Conditions holds parenthesized media-in-parens strings.
 type CssMediaQuery struct {
+	span sasscommon.FileSpan
 	// Modifier is the query modifier ("not" or "only"), or nil if absent.
 	Modifier *string
 	// Type is the media type ("screen", "print"), or nil if the query is conditions-only.
@@ -32,21 +34,30 @@ type CssMediaQuery struct {
 	Conditions []string
 }
 
+// Span returns the source span of the query.
+//
+// Matches Dart: CssMediaQuery.span (AstNode).
+func (q *CssMediaQuery) Span() (sasscommon.FileSpan, error) { return q.span, nil }
+
+// IsAstNode marks CssMediaQuery as an AstNode.
+func (q *CssMediaQuery) IsAstNode() {}
+
 // NewCssMediaQueryType creates a media query that specifies a type and,
 // optionally, conditions.
 //
 // Conjunction is always true for this form. Matches Dart:
 // CssMediaQuery.type.
-func NewCssMediaQueryType(typ *string, modifier *string, conditions []string) *CssMediaQuery {
-	return newCssMediaQueryType(typ, modifier, conditions)
+func NewCssMediaQueryType(typ *string, span sasscommon.FileSpan, modifier *string, conditions []string) *CssMediaQuery {
+	return newCssMediaQueryType(typ, span, modifier, conditions)
 }
 
 // newCssMediaQueryType builds a type-form query directly. The public
 // constructor and Merge share it so both copy conditions identically.
-func newCssMediaQueryType(typ *string, modifier *string, conditions []string) *CssMediaQuery {
+func newCssMediaQueryType(typ *string, span sasscommon.FileSpan, modifier *string, conditions []string) *CssMediaQuery {
 	conds := make([]string, len(conditions))
 	copy(conds, conditions)
 	return &CssMediaQuery{
+		span:        span,
 		Type:        typ,
 		Modifier:    modifier,
 		Conjunction: true,
@@ -59,7 +70,7 @@ func newCssMediaQueryType(typ *string, modifier *string, conditions []string) *C
 //
 // A nil conjunction defaults to true; more than one condition requires an
 // explicit conjunction. Matches Dart: CssMediaQuery.condition.
-func NewCssMediaQueryCondition(conditions []string, conjunction *bool) (*CssMediaQuery, error) {
+func NewCssMediaQueryCondition(conditions []string, span sasscommon.FileSpan, conjunction *bool) (*CssMediaQuery, error) {
 	if conjunction == nil && len(conditions) > 1 {
 		return nil, errors.New(
 			"If conditions is longer than one element, conjunction may not be null.",
@@ -69,16 +80,17 @@ func NewCssMediaQueryCondition(conditions []string, conjunction *bool) (*CssMedi
 	if conjunction != nil {
 		c = *conjunction
 	}
-	return newCssMediaQueryCondition(conditions, c), nil
+	return newCssMediaQueryCondition(conditions, span, c), nil
 }
 
 // newCssMediaQueryCondition builds a condition-form query with an explicit
 // conjunction. Merge uses it where the public constructor's validation cannot
 // fail but its error return cannot be propagated.
-func newCssMediaQueryCondition(conditions []string, conjunction bool) *CssMediaQuery {
+func newCssMediaQueryCondition(conditions []string, span sasscommon.FileSpan, conjunction bool) *CssMediaQuery {
 	conds := make([]string, len(conditions))
 	copy(conds, conditions)
 	return &CssMediaQuery{
+		span:        span,
 		Conjunction: conjunction,
 		Conditions:  conds,
 	}
@@ -127,7 +139,7 @@ func (q *CssMediaQuery) Merge(other *CssMediaQuery) MediaQueryMergeResult {
 		conditions = append(conditions, q.Conditions...)
 		conditions = append(conditions, other.Conditions...)
 		return &MediaQuerySuccessfulMergeResult{
-			Query: newCssMediaQueryCondition(conditions, true),
+			Query: newCssMediaQueryCondition(conditions, q.span, true),
 		}
 	}
 
@@ -255,7 +267,7 @@ func (q *CssMediaQuery) Merge(other *CssMediaQuery) MediaQueryMergeResult {
 	}
 
 	return &MediaQuerySuccessfulMergeResult{
-		Query: newCssMediaQueryType(resultType, resultModifier, conditions),
+		Query: newCssMediaQueryType(resultType, q.span, resultModifier, conditions),
 	}
 }
 

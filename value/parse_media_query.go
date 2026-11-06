@@ -63,6 +63,7 @@ func (p *CssMediaQueryParser) Parse() ([]*CssMediaQuery, error) {
 // the condition ("(not (color))"). Matches Dart's
 // MediaQueryParser._mediaQuery.
 func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
+	start := p.scanner.State()
 	if p.scanner.PeekChar(0) == '(' {
 		cond, err := p._mediaInParens()
 		if err != nil {
@@ -105,7 +106,15 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 			}
 		}
 
-		result, err := NewCssMediaQueryCondition(conditions, &conjunction)
+		span, err := p.spanFrom(start)
+		if err != nil {
+			return nil, err
+		}
+		span, err = span.TrimRight()
+		if err != nil {
+			return nil, err
+		}
+		result, err := NewCssMediaQueryCondition(conditions, span, &conjunction)
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +138,11 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 				return nil, err
 			}
 			condFull := "(not " + cond + ")"
-			result, err := NewCssMediaQueryCondition([]string{condFull}, nil)
+			span, err := p.spanFrom(start)
+			if err != nil {
+				return nil, err
+			}
+			result, err := NewCssMediaQueryCondition([]string{condFull}, span, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -142,7 +155,15 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 	}
 	if !p.lookingAtIdentifier(nil) {
 		// For example, "@media screen {"
-		return NewCssMediaQueryType(&identifier1, nil, nil), nil
+		span, err := p.spanFrom(start)
+		if err != nil {
+			return nil, err
+		}
+		span, err = span.TrimRight()
+		if err != nil {
+			return nil, err
+		}
+		return NewCssMediaQueryType(&identifier1, span, nil, nil), nil
 	}
 
 	identifier2, err := p.identifier(false, false)
@@ -173,7 +194,15 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 			// For example, "@media only screen and ..."
 		} else {
 			// For example, "@media only screen {"
-			return NewCssMediaQueryType(typ, modifier, nil), nil
+			span, err := p.spanFrom(start)
+			if err != nil {
+				return nil, err
+			}
+			span, err = span.TrimRight()
+			if err != nil {
+				return nil, err
+			}
+			return NewCssMediaQueryType(typ, span, modifier, nil), nil
 		}
 	}
 
@@ -191,14 +220,26 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 			return nil, err
 		}
 		condFull := "(not " + cond + ")"
-		return NewCssMediaQueryType(typ, modifier, []string{condFull}), nil
+		span, err := p.spanFrom(start)
+		if err != nil {
+			return nil, err
+		}
+		return NewCssMediaQueryType(typ, span, modifier, []string{condFull}), nil
 	}
 
 	seq, err := p._mediaLogicSequence("and")
 	if err != nil {
 		return nil, err
 	}
-	return NewCssMediaQueryType(typ, modifier, seq), nil
+	span, err := p.spanFrom(start)
+	if err != nil {
+		return nil, err
+	}
+	span, err = span.TrimRight()
+	if err != nil {
+		return nil, err
+	}
+	return NewCssMediaQueryType(typ, span, modifier, seq), nil
 }
 
 // _mediaLogicSequence consumes one or more <media-in-parens> expressions

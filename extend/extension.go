@@ -152,9 +152,11 @@ func NewExtender(sel *value.ComplexSelector, specificity *int, original bool) *E
 // AssertCompatibleMediaContext rejects applying this extender in
 // mediaContext when the extension was defined in a different media context.
 // Extenders without a creating extension, and extensions defined at the top
-// level, are compatible anywhere; a mismatch reports the @extend rule's
-// span.
-func (e *Extender) AssertCompatibleMediaContext(mediaContext []*value.CssMediaQuery) error {
+// level, are compatible anywhere; a mismatch reports the @extend rule, both
+// media contexts, and the extended selector as a multi-span error.
+//
+// Matches Dart: Extender.assertCompatibleMediaContext.
+func (e *Extender) AssertCompatibleMediaContext(mediaContext []*value.CssMediaQuery, selectorNodeWithSpan sasscommon.AstNode) error {
 	ext := e.extension
 	if ext == nil {
 		return nil
@@ -166,13 +168,36 @@ func (e *Extender) AssertCompatibleMediaContext(mediaContext []*value.CssMediaQu
 	if mediaContext != nil && mediaQueriesEqual(expectedMediaContext, mediaContext) {
 		return nil
 	}
+
 	span, err := ext.Span()
 	if err != nil {
 		return err
 	}
-	return &sasscommon.SassException{
-		Message: "You may not @extend selectors across media queries.",
-		Span:    span,
+	expectedSpan, err := expectedMediaContext[len(expectedMediaContext)-1].Span()
+	if err != nil {
+		return err
+	}
+	secondary := sasscommon.NewSecondarySpans(
+		sasscommon.SecondarySpan{Span: expectedSpan, Label: "extension @media"},
+	)
+	if mediaContext != nil {
+		mediaSpan, err := mediaContext[len(mediaContext)-1].Span()
+		if err != nil {
+			return err
+		}
+		secondary.Put(mediaSpan, "extended selector @media")
+	}
+	selectorSpan, err := selectorNodeWithSpan.Span()
+	if err != nil {
+		return err
+	}
+	secondary.Put(selectorSpan, "extended selector")
+
+	return &sasscommon.MultiSpanSassException{
+		Message:      "You may not @extend selectors across media queries.",
+		Span:         span,
+		PrimaryLabel: "extension",
+		Secondary:    secondary,
 	}
 }
 

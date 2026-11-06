@@ -65,7 +65,7 @@ func TestMergeExtensionsCompatibleMediaContexts(t *testing.T) {
 	}
 	target := class("b")
 	mediaContext := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	left := NewExtension(extender, target, sasscommon.BogusSpan, mediaContext, false)
 	right := NewExtension(extender, target, sasscommon.BogusSpan, mediaContext, false)
@@ -83,24 +83,59 @@ func TestMergeExtensionsCompatibleMediaContexts(t *testing.T) {
 }
 
 func TestMergeExtensionsIncompatibleMediaContexts(t *testing.T) {
-	span := realSpan()
 	extender, err := complexSelector(class("a"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	target := class("b")
+
+	const text = "screen print a a"
+	screenSpan := spanAt(text, 0, 6)
+	printSpan := spanAt(text, 7, 12)
+	leftSpan := spanAt(text, 13, 14)
+	rightSpan := spanAt(text, 15, 16)
+
+	screen := "screen"
+	print := "print"
 	mc1 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&screen, screenSpan, nil, nil),
 	}
 	mc2 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"print"}[0], nil, nil),
+		value.NewCssMediaQueryType(&print, printSpan, nil, nil),
 	}
-	left := NewExtension(extender, target, span, mc1, false)
-	right := NewExtension(extender, target, span, mc2, false)
+	left := NewExtension(extender, target, leftSpan, mc1, false)
+	right := NewExtension(extender, target, rightSpan, mc2, false)
 
 	merged, err := MergeExtensions(left, right)
-	if err == nil && merged != nil {
-		t.Error("should error on incompatible media contexts")
+	if err == nil || merged != nil {
+		t.Fatalf("MergeExtensions() = %v, %v, want error", merged, err)
+	}
+	mse, ok := err.(*sasscommon.MultiSpanSassException)
+	if !ok {
+		t.Fatalf("error = %T, want *sasscommon.MultiSpanSassException", err)
+	}
+	wantMessage := "You may not @extend the same selector from within different media queries."
+	if mse.Message != wantMessage {
+		t.Errorf("Message = %q, want %q", mse.Message, wantMessage)
+	}
+	if mse.Span != rightSpan {
+		t.Errorf("Span = %v, want %v", mse.Span, rightSpan)
+	}
+	if mse.PrimaryLabel != "second extension" {
+		t.Errorf("PrimaryLabel = %q, want %q", mse.PrimaryLabel, "second extension")
+	}
+	wantSecondary := map[sasscommon.FileSpan]string{
+		printSpan:  "second extension @media",
+		leftSpan:   "first extension",
+		screenSpan: "first extension @media",
+	}
+	if mse.Secondary.Len() != len(wantSecondary) {
+		t.Fatalf("Secondary has %d spans, want %d", mse.Secondary.Len(), len(wantSecondary))
+	}
+	for span, want := range wantSecondary {
+		if got, ok := mse.Secondary.Get(span); !ok || got != want {
+			t.Errorf("Secondary[%v] = %q, %v, want %q", span, got, ok, want)
+		}
 	}
 }
 

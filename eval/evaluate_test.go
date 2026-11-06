@@ -541,7 +541,7 @@ func TestMergeMediaQueriesEmptyFirst(t *testing.T) {
 	v := testVisitor(t, &recordingLogger{})
 	q1 := []*value.CssMediaQuery{}
 	screen := "screen"
-	q2 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, nil, nil)}
+	q2 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)}
 	result := v.mergeMediaQueries(q1, q2)
 	if len(result) != 0 {
 		t.Errorf("empty q1 should produce empty result, got %d", len(result))
@@ -551,8 +551,8 @@ func TestMergeMediaQueriesEmptyFirst(t *testing.T) {
 func TestMergeMediaQueriesMatching(t *testing.T) {
 	v := testVisitor(t, &recordingLogger{})
 	screen := "screen"
-	q1 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, nil, nil)}
-	q2 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, nil, nil)}
+	q1 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)}
+	q2 := []*value.CssMediaQuery{value.NewCssMediaQueryType(&screen, sasscommon.BogusSpan, nil, nil)}
 	result := v.mergeMediaQueries(q1, q2)
 	if len(result) != 1 {
 		t.Errorf("matching screen queries should merge to 1, got %d", len(result))

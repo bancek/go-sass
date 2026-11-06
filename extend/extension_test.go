@@ -16,6 +16,11 @@ func realSpan() sasscommon.FileSpan {
 	return fs.Span(0, len(raw))
 }
 
+func spanAt(text string, start, end int) sasscommon.FileSpan {
+	fs := sasscommon.NewFileSource([]byte(text), nil)
+	return sasscommon.NewFileSpan(fs, start, end)
+}
+
 func class(name string) value.SimpleSelector {
 	return value.NewClassSelector(name, sasscommon.BogusSpan)
 }
@@ -101,7 +106,7 @@ func TestExtensionMediaContext(t *testing.T) {
 	}
 	target := class("b")
 	mediaContext := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	ext := NewExtension(extender, target, sasscommon.BogusSpan, mediaContext, false)
 	if ext.MediaContext() == nil {
@@ -218,7 +223,7 @@ func TestAssertCompatibleMediaContextBothNil(t *testing.T) {
 	}
 	target := class("b")
 	ext := NewExtension(extender, target, sasscommon.BogusSpan, nil, false)
-	err = ext.Extender().AssertCompatibleMediaContext(nil)
+	err = ext.Extender().AssertCompatibleMediaContext(nil, extender)
 	if err != nil {
 		t.Errorf("should not error: %v", err)
 	}
@@ -232,9 +237,9 @@ func TestAssertCompatibleMediaContextExtenderHasNoMediaContext(t *testing.T) {
 	target := class("b")
 	ext := NewExtension(extender, target, sasscommon.BogusSpan, nil, false)
 	mediaContext := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
-	err = ext.Extender().AssertCompatibleMediaContext(mediaContext)
+	err = ext.Extender().AssertCompatibleMediaContext(mediaContext, extender)
 	if err != nil {
 		t.Errorf("should not error when extender has no media context: %v", err)
 	}
@@ -247,10 +252,10 @@ func TestAssertCompatibleMediaContextMatching(t *testing.T) {
 	}
 	target := class("b")
 	mediaContext := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	ext := NewExtension(extender, target, sasscommon.BogusSpan, mediaContext, false)
-	err = ext.Extender().AssertCompatibleMediaContext(mediaContext)
+	err = ext.Extender().AssertCompatibleMediaContext(mediaContext, extender)
 	if err != nil {
 		t.Errorf("should not error on matching contexts: %v", err)
 	}
@@ -262,16 +267,50 @@ func TestAssertCompatibleMediaContextConflicting(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := class("b")
+
+	const text = "screen print b a"
+	screenSpan := spanAt(text, 0, 6)
+	printSpan := spanAt(text, 7, 12)
+	selectorSpan := spanAt(text, 13, 14)
+	extendSpan := spanAt(text, 15, 16)
+	selectorNode := value.NewClassSelector("b", selectorSpan)
+
+	screen := "screen"
+	print := "print"
 	mediaContext1 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&screen, screenSpan, nil, nil),
 	}
 	mediaContext2 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"print"}[0], nil, nil),
+		value.NewCssMediaQueryType(&print, printSpan, nil, nil),
 	}
-	ext := NewExtension(extender, target, sasscommon.BogusSpan, mediaContext1, false)
-	err = ext.Extender().AssertCompatibleMediaContext(mediaContext2)
-	if err == nil {
-		t.Error("should error on conflicting media contexts")
+	ext := NewExtension(extender, target, extendSpan, mediaContext1, false)
+	err = ext.Extender().AssertCompatibleMediaContext(mediaContext2, selectorNode)
+	mse, ok := err.(*sasscommon.MultiSpanSassException)
+	if !ok {
+		t.Fatalf("error = %T, want *sasscommon.MultiSpanSassException", err)
+	}
+	wantMessage := "You may not @extend selectors across media queries."
+	if mse.Message != wantMessage {
+		t.Errorf("Message = %q, want %q", mse.Message, wantMessage)
+	}
+	if mse.Span != extendSpan {
+		t.Errorf("Span = %v, want %v", mse.Span, extendSpan)
+	}
+	if mse.PrimaryLabel != "extension" {
+		t.Errorf("PrimaryLabel = %q, want %q", mse.PrimaryLabel, "extension")
+	}
+	wantSecondary := map[sasscommon.FileSpan]string{
+		screenSpan:   "extension @media",
+		printSpan:    "extended selector @media",
+		selectorSpan: "extended selector",
+	}
+	if mse.Secondary.Len() != len(wantSecondary) {
+		t.Fatalf("Secondary has %d spans, want %d", mse.Secondary.Len(), len(wantSecondary))
+	}
+	for span, want := range wantSecondary {
+		if got, ok := mse.Secondary.Get(span); !ok || got != want {
+			t.Errorf("Secondary[%v] = %q, %v, want %q", span, got, ok, want)
+		}
 	}
 }
 
@@ -283,7 +322,7 @@ func TestMediaQueriesEqualBothNil(t *testing.T) {
 
 func TestMediaQueriesEqualOneNilOneNot(t *testing.T) {
 	mq := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	if mediaQueriesEqual(mq, nil) {
 		t.Error("nil vs non-nil should not be equal")
@@ -295,10 +334,10 @@ func TestMediaQueriesEqualOneNilOneNot(t *testing.T) {
 
 func TestMediaQueriesEqualSame(t *testing.T) {
 	mq1 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	mq2 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	if !mediaQueriesEqual(mq1, mq2) {
 		t.Error("equal media queries should be equal")
@@ -307,10 +346,10 @@ func TestMediaQueriesEqualSame(t *testing.T) {
 
 func TestMediaQueriesEqualDifferent(t *testing.T) {
 	mq1 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	mq2 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"print"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"print"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	if mediaQueriesEqual(mq1, mq2) {
 		t.Error("different media queries should not be equal")
@@ -319,11 +358,11 @@ func TestMediaQueriesEqualDifferent(t *testing.T) {
 
 func TestMediaQueriesEqualDifferentLength(t *testing.T) {
 	mq1 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	mq2 := []*value.CssMediaQuery{
-		value.NewCssMediaQueryType(&[]string{"screen"}[0], nil, nil),
-		value.NewCssMediaQueryType(&[]string{"print"}[0], nil, nil),
+		value.NewCssMediaQueryType(&[]string{"screen"}[0], sasscommon.BogusSpan, nil, nil),
+		value.NewCssMediaQueryType(&[]string{"print"}[0], sasscommon.BogusSpan, nil, nil),
 	}
 	if mediaQueriesEqual(mq1, mq2) {
 		t.Error("different length queries should not be equal")

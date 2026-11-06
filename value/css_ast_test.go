@@ -815,7 +815,7 @@ func TestModifiableCssStyleRuleEqualsIgnoringChildren(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func makeMediaQuery(cond string) CssMediaQuery {
-	q, err := NewCssMediaQueryCondition([]string{cond}, nil)
+	q, err := NewCssMediaQueryCondition([]string{cond}, sasscommon.BogusSpan, nil)
 	if err != nil {
 		panic(err)
 	}

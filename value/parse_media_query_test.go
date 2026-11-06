@@ -137,6 +137,45 @@ func TestMediaQueryOnlyAndNot(t *testing.T) {
 	}
 }
 
+func TestMediaQuerySpan(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"screen", "screen"},
+		{"screen ", "screen"},
+		{"only screen ", "only screen"},
+		{"(color) ", "(color)"},
+		{"screen and (color) ", "screen and (color)"},
+		{"screen and not (color)", "screen and not (color)"},
+		{"not (color)", "not (color)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			p := newTestCssMediaQueryParser(tt.input)
+			queries, err := p.Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(queries) != 1 {
+				t.Fatalf("expected 1 query, got %d", len(queries))
+			}
+			span, err := queries[0].Span()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := span.SpanText()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("span = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMediaQueryErrorEmpty(t *testing.T) {
 	p := newTestCssMediaQueryParser("")
 	_, err := p.Parse()

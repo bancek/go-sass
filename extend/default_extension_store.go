@@ -159,8 +159,8 @@ func (store *DefaultExtensionStore) ExtensionsWhereTarget(callback func(value.Si
 // returns a sealed box for the result. The box stays live: later extensions
 // that match rewrite its value in place. Invisible selectors skip original
 // tracking; mediaContext records where the rule was defined (nil at the top
-// level). Extension failures are rethrown with the originating selector's
-// location prefixed, matching Dart's "From <span>" wrapper.
+// level). Extension failures propagate unchanged; they already carry every
+// relevant location.
 func (store *DefaultExtensionStore) AddSelector(
 	sel *value.SelectorList,
 	mediaContext []*value.CssMediaQuery,
@@ -176,19 +176,6 @@ func (store *DefaultExtensionStore) AddSelector(
 		var err error
 		sel, err = store.extendList(originalSelector, store.extensions, mediaContext)
 		if err != nil {
-			if se, ok := errors.AsType[*sasscommon.SassException](err); ok {
-				spanMsg, err := spanMessage(se.Span)
-				if err != nil {
-					return nil, err
-				}
-				return nil, sasscommon.ThrowWithTrace(
-					&sasscommon.SassException{
-						Message: fmt.Sprintf("From %s\n%s", spanMsg, se.Message),
-						Span:    se.Span,
-					},
-					se,
-				)
-			}
 			return nil, err
 		}
 	}
@@ -456,6 +443,16 @@ func (store *DefaultExtensionStore) extendExistingExtensions(
 					se,
 				)
 			}
+			if mse, ok := errors.AsType[*sasscommon.MultiSpanSassException](err); ok {
+				selectorSpan, err := extension.Extender().Selector.Span()
+				if err != nil {
+					return additionalExtensions, err
+				}
+				return additionalExtensions, sasscommon.ThrowWithTrace(
+					mse.WithAdditionalSpan(selectorSpan, "target selector"),
+					mse,
+				)
+			}
 			return additionalExtensions, err
 		}
 		// Without the target in the output there is nothing to rebuild, so the
@@ -510,7 +507,7 @@ func (store *DefaultExtensionStore) extendExistingExtensions(
 // extendExistingSelectors rewrites each registered selector box with the
 // new extensions, using the box's media context. A selector whose box value
 // is unchanged (unification failed, for example) is not re-registered;
-// failures are rethrown with the old value's location prefixed.
+// failures propagate unchanged.
 func (store *DefaultExtensionStore) extendExistingSelectors(
 	selectors *linkedhashmap.LinkedHashSet[*box.ModifiableBox[*value.SelectorList]],
 	newExtensions *linkedhashmap.LinkedHashMap[value.SimpleSelector, *linkedhashmap.LinkedHashMap[*value.ComplexSelector, Extension]],
@@ -525,23 +522,6 @@ func (store *DefaultExtensionStore) extendExistingSelectors(
 			mc,
 		)
 		if err != nil {
-			if se, ok := errors.AsType[*sasscommon.SassException](err); ok {
-				oldValueSpan, err := oldValue.Span()
-				if err != nil {
-					return err
-				}
-				spanMsg, err := spanMessage(oldValueSpan)
-				if err != nil {
-					return err
-				}
-				return sasscommon.ThrowWithTrace(
-					&sasscommon.SassException{
-						Message: fmt.Sprintf("From %s\n%s", spanMsg, se.Message),
-						Span:    se.Span,
-					},
-					se,
-				)
-			}
 			return err
 		}
 
@@ -954,7 +934,7 @@ func (store *DefaultExtensionStore) extendCompound(
 	if len(options) == 1 {
 		var result []*value.ComplexSelector
 		for _, extender := range options[0] {
-			if err := extender.AssertCompatibleMediaContext(mediaQueryContext); err != nil {
+			if err := extender.AssertCompatibleMediaContext(mediaQueryContext, component.Selector); err != nil {
 				return nil, err
 			}
 			complex := extender.Selector.WithAdditionalCombinators(component.Combinators, false)
@@ -1393,7 +1373,11 @@ func (store *DefaultExtensionStore) unifyExtenders(
 	}
 
 	for _, extender := range extenders {
-		if err := extender.AssertCompatibleMediaContext(mediaQueryContext); err != nil {
+		// Dart: AstNode.fake(() => span)
+		selectorNodeWithSpan := sasscommon.NewFakeAstNode(func() (sasscommon.FileSpan, error) {
+			return span, nil
+		})
+		if err := extender.AssertCompatibleMediaContext(mediaQueryContext, selectorNodeWithSpan); err != nil {
 			return nil, err
 		}
 	}
@@ -1530,20 +1514,6 @@ func cssValuesEqual(a, b []sasscommon.CssValue[value.Combinator]) bool {
 		}
 	}
 	return true
-}
-
-// spanMessage renders span as `line L, column C of URL:` for the "From ..."
-// prefixes on extension error reports.
-func spanMessage(s sasscommon.FileSpan) (string, error) {
-	u, err := s.SourceURL()
-	if err != nil {
-		return "", err
-	}
-	startLoc, err := s.StartLocation()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("line %d, column %d of %s:", startLoc.Line+1, startLoc.Column+1, sasscommon.PrettyUri(u)), nil
 }
 
 // rotateSlice moves the element at start to end-1, shifting the middle

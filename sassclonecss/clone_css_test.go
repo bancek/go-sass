@@ -23,7 +23,7 @@ func cssDeclValue(s string) sasscommon.CssValue[value.Value] {
 }
 
 func cssMediaQuery(cond string) value.CssMediaQuery {
-	q, err := value.NewCssMediaQueryCondition([]string{cond}, nil)
+	q, err := value.NewCssMediaQueryCondition([]string{cond}, sasscommon.BogusSpan, nil)
 	if err != nil {
 		panic(err)
 	}
