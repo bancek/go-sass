@@ -2,7 +2,12 @@
 
 `concurrency.cancel-in-progress` on every push, in every workflow.
 
-## `ci.yml` (push to `main` + PRs)
+## `ci.yml` (push to every branch + PRs)
+
+Runs on every branch push so a short-lived feature branch can be validated
+before fast-forwarding `main`; tag pushes are still excluded by the branches
+filter. `release.yml` keeps its `main`/tag-only filters because it has
+packaging and release side effects.
 
 Unit tests + full spec suite on all three consumer OSes:
 

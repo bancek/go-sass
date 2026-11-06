@@ -160,6 +160,33 @@ string>" -- lib/` on the entry's behavior, not by re-reading subjects.
    version-string step is `tools/bump-version.sh <version>` (patch and
    `-alpha` bumps run the script directly; a re-sync ends here).
 
+   Then push the short-lived feature branch (for example
+   `upgrade/sass-<version>`) and wait for branch CI. `ci.yml` runs on every
+   branch push. After branch CI is green, fast-forward `main` to the feature
+   branch tip and push it unless the request said "stop before main"; wait
+   for main CI. After main CI is green, create and push the annotated tag
+   `v<version>` and wait for tag CI.
+
+## Push and tag ownership
+
+The agent may push short-lived feature branches. The agent **never pushes
+`main`**; every release checkpoint ends with a review stop before the main
+push, and the user reviews and pushes. Once main CI is green, the agent
+creates and pushes the tag, then waits for tag CI. Tags are created only
+after main CI is green, so they include any CI fix commits.
+
+While the repository is private, tag pushes do not publish: the `id-token`
+and `attestations` permissions and the npm trusted publishers are disabled
+(see [`ci.md`](ci.md)). Stop before the tag step in that state.
+
+## Branch policy
+
+`ci.yml` runs on every branch push. Use a short-lived branch (for example
+`upgrade/sass-<version>`) for each release checkpoint, fast-forward `main` to
+it after branch CI is green, and delete the branch when the upgrade is
+complete. `release.yml` stays `main`/tag-only; it has packaging and release
+side effects.
+
 ## Ecosystem pins (checked in step 1, moved per unit — not once at the end)
 
 dart-sass does **not** pin sass-spec: its CI clones floating `main` HEAD.
