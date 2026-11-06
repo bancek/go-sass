@@ -14,6 +14,7 @@ import (
 	"sort"
 
 	"github.com/bancek/go-sass/sasscommon"
+	"github.com/bancek/go-sass/util"
 )
 
 // InterpolationMap maps locations in a string generated from an
@@ -416,14 +417,15 @@ func (m *InterpolationMap) expandInterpolationSpanLeft(startOffset int) (int, er
 	return i, nil
 }
 
-// expandInterpolationSpanRight returns the offset of the interpolation's
-// closing `}`, given the end offset of a FileSpan covering an interpolated
-// expression.
+// expandInterpolationSpanRight returns the offset of the next character that
+// isn't whitespace or a comment, given the end offset of a FileSpan covering
+// an interpolated expression.
 //
-// The scan walks right to the first `}` outside comments, skipping `//` line
-// comments through their terminator and `/* ... */` blocks in full —
-// otherwise a brace inside a comment would end the search early. Empty sources
-// fall back to one character past the end. (Dart: _expandInterpolationSpanRight.)
+// For most interpolations this is the closing `}`, but some (such as media
+// query expressions) don't use literal `#{}` and end at a different bounding
+// character. The scan skips `//` line comments through their terminator and
+// `/* ... */` blocks in full. Empty sources fall back to one character past
+// the end. (Dart: _expandInterpolationSpanRight.)
 func (m *InterpolationMap) expandInterpolationSpanRight(endOffset int) (int, error) {
 	var source string
 	interpSpan, err := m.interpolation.Span()
@@ -444,9 +446,6 @@ func (m *InterpolationMap) expandInterpolationSpanRight(endOffset int) (int, err
 	for i < len(source) {
 		next := source[i]
 		i++
-		if next == '}' {
-			break
-		}
 		if next == '/' {
 			if i < len(source) {
 				second := source[i]
@@ -476,6 +475,8 @@ func (m *InterpolationMap) expandInterpolationSpanRight(endOffset int) (int, err
 					}
 				}
 			}
+		} else if !util.IsWhitespace(int(next)) {
+			break
 		}
 	}
 	return i, nil

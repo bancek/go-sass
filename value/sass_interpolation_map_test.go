@@ -213,3 +213,23 @@ func TestInterpolationMapAlreadyMapped(t *testing.T) {
 		t.Error("MapSpan should return unchanged span when already mapped")
 	}
 }
+
+func TestInterpolationMapExpandRightStopsAtNonWhitespace(t *testing.T) {
+	// Media-query interpolations are not wrapped in `#{}`; expansion must
+	// stop at the first non-whitespace character rather than scanning to the
+	// next `}` (which would swallow the whole media block).
+	source := "abc def { ignore } "
+	fs := sasscommon.NewFileSource([]byte(source), nil)
+	span := sasscommon.NewSimpleFileSpan(fs, 0, len(source))
+	m, err := NewInterpolationMap(NewInterpolationPlain(source, span), []int{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.expandInterpolationSpanRight(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 5 {
+		t.Errorf("expandInterpolationSpanRight(3) = %d, want 5", got)
+	}
+}
