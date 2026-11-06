@@ -115,9 +115,9 @@ be re-parsed.
 
 - Output is **byte-identical** to Dart Sass on the bootstrap,
   `huge`, and `huge10` workloads — CSS, source maps, warnings, and errors.
-- The `sass-spec` suite must stay green: 14333/14339 (6 todo).
+- The `sass-spec` suite must stay green: 14338/14344 (6 todo).
 - `compilerVersion`/`protocolVersion` must track the pinned dart-sass version
-  (`1.105.0` / `3.3.0`) in lockstep — see `CONTRIBUTING.md` version-bump
+  (`1.105.1` / `3.3.0`) in lockstep — see `CONTRIBUTING.md` version-bump
   checklist.
 
 ## Test standards

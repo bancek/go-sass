@@ -2,7 +2,7 @@
 
 `go-sass` is a Go port of [Dart Sass](https://sass-lang.com/dart-sass), the
 reference implementation of the Sass CSS preprocessor. It produces
-**byte-identical output** to Dart Sass `1.105.0` — the same CSS, source maps,
+**byte-identical output** to Dart Sass `1.105.1` — the same CSS, source maps,
 error messages, and warnings — as a self-contained Go module, and a drop-in
 replacement for the `sass` command line and the `sass-embedded` protocol server
 (spawned with `--embedded`).
@@ -10,7 +10,7 @@ replacement for the `sass` command line and the `sass-embedded` protocol server
 There is also a matching [Rust port](https://github.com/bancek/rust-sass).
 
 The compiler is complete and passes the full spec suite against Dart Sass
-`1.105.0` (14333/14339 passing specs, 6 todo).
+`1.105.1` (14338/14344 passing specs, 6 todo).
 
 ## Packages
 

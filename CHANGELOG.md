@@ -1,9 +1,24 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.105.0`); the
+Release history. Tags track the pinned dart-sass version (`v1.105.1`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.105.1
+
+- Match dart-sass 1.105.1's multi-span `@extend` errors across media
+  queries, with `extension`, `extension @media`, `extended selector`, and
+  `extended selector @media` labels.
+- Trim trailing whitespace from selector and media-query spans during
+  parsing, and make span trimming lazy, so diagnostics no longer highlight
+  trailing whitespace.
+- Fix interpolation span expansion at adjacent non-whitespace characters.
+- Bind mixin rest/named/default parameters to Dart's declaration nodes, so
+  source maps point at the call site or default expression instead of the
+  mixin declaration. Bootstrap source maps are byte-identical to Dart.
+- Byte-identical output to Dart Sass 1.105.1 (14338/14344 spec tests
+  passing, 6 todo).
 
 ## 1.105.0
 
