@@ -31,7 +31,7 @@ const maxConcurrentCompilations = 15
 // ref/embedded.md can catch version skew.
 //
 // Matches Dart: const String.fromEnvironment("compiler-version")
-var compilerVersion = "1.105.1"
+var compilerVersion = "1.105.2"
 
 // protocolVersion is the embedded protocol release reported to the host
 // in version responses. Dart injects it at build time from the
