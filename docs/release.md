@@ -1,7 +1,7 @@
 # Release runbook
 
-Tags track the dart-sass version (`v1.104.0`); rehearsals add a suffix
-(`v1.104.0-alpha0`, `v1.104.0-alpha1`). Mechanics: [`ci.md`](ci.md). Bump
+Tags track the dart-sass version (`v1.105.0`); rehearsals add a suffix
+(`v1.105.0-alpha0`, `v1.105.0-alpha1`). Mechanics: [`ci.md`](ci.md). Bump
 surfaces: [`CONTRIBUTING.md`](CONTRIBUTING.md#version-bump-checklist).
 
 ## Bump
@@ -21,23 +21,25 @@ prerelease this fails if upstream has not published the matching
 instead), move `PORTED_FROM` + submodule pins, commit. Registry writes are
 tag-gated — pushes without tags only build/test/pack/upload artifacts.
 
-## First release (alpha0, manual registries)
+## Initial release (completed)
 
-Bootstraps everything before automation can use it. No tag at any point.
+The first public release has already been published. This section is retained
+as a record of the manual bootstrap flow; new releases use the CI
+prerelease/final flows below. No tag at any point.
 
 1. Publish-day setup: uncomment the `id-token` + `attestations`
    permissions and the caches in `release.yml` (one block each), re-enable
    the `cache` lines in `ci.yml`. Re-enable the parked workflow
    (`release.yml.disabled` back to `release.yml`) — need the build matrix
    for artifacts.
-2. Bump to `1.104.0-alpha0`, CHANGELOG, lockfile re-sync, commit, push.
+2. Bump to `1.105.0-alpha0`, CHANGELOG, lockfile re-sync, commit, push.
 3. CI green → `gh run download <run-id> -D alpha-artifacts` (9 npm tgzs +
    8 release archives + checksums).
 4. Classic token in env (`NODE_AUTH_TOKEN`; OIDC never serves hand runs).
    Rotate/delete after.
 5. `npm publish --tag next` from the downloaded tarballs: 8 platform
    packages first, then the wrapper. Never omit `--tag` on a prerelease.
-6. Optional paper trail: `gh release create v1.104.0-alpha0 --draft
+6. Optional paper trail: `gh release create v1.105.0-alpha0 --draft
    --prerelease --generate-notes` + upload.
 7. Set up trusted publishing now (add the repo as a trusted publisher on
    the `sass-embedded-go*` packages; nothing is parked in secrets
@@ -49,7 +51,7 @@ Standing rehearsal mechanism, not a one-off: proves the full automation
 before each final. Needs trusted publishing live (preceding step).
 
 1. Bump, CHANGELOG, lockfile re-sync, commit, push.
-2. CI green → tag (e.g. `v1.104.0-alpha1`), push tag.
+2. CI green → tag (e.g. `v1.105.0-alpha1`), push tag.
 3. CI creates the release as **draft** (`--prerelease`), attaches archives
    + tarballs, attests the archives (check with `gh attestation verify
    <archive> -R <owner/repo>`), and publishes npm under `next` (derived

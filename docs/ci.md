@@ -118,7 +118,7 @@ checklist runs `npm install --package-lock-only`.
 
 ## Tags and prereleases
 
-Tags track the pinned dart-sass version: `v1.104.0`, etc. Pushing a `v*`
+Tags track the pinned dart-sass version: `v1.105.0`, etc. Pushing a `v*`
 tag creates the draft GitHub release with binaries + npm tarballs, and
 publishes registries: npm under `next` on `-`-suffixed tags, `latest`
 otherwise; archives carry Sigstore attestations either way. The full
@@ -129,28 +129,22 @@ procedure, including the alpha/final distinction, lives in
 Test the release path with a prerelease suffix (never `latest`):
 
 ```sh
-git tag v1.104.0-prerelease && git push origin v1.104.0-prerelease
+git tag v1.105.0-prerelease && git push origin v1.105.0-prerelease
 # verify assets on the release page, then clean up:
-gh release delete v1.104.0-prerelease --cleanup-tag
-git tag -d v1.104.0-prerelease
+gh release delete v1.105.0-prerelease --cleanup-tag
+git tag -d v1.105.0-prerelease
 ```
 
-## While the repo is private
+## Caches and trusted publishing
 
-- Module/build caches are commented out in all workflows (re-enable on
-  publish day — one line each).
-- The `id-token` + `attestations` permissions are commented out in
-  `release.yml` (uncomment on publish day — one block; see
-  [`release.md`](release.md) First release). Until then, do not push
-  tags: the attest and npm-publish steps need those permissions.
-- For npm trusted publishing, add the repo as a trusted publisher on the
-  `sass-embedded-go*` packages at first publish; nothing is parked in
-  secrets beforehand.
+- Module/build caches are enabled in all workflows.
+- The `id-token` + `attestations` permissions are enabled in `release.yml`,
+  so tag pushes can publish and attest.
+- npm trusted publishing is configured on the `sass-embedded-go*` packages;
+  nothing is parked in secrets.
 
 ## Roadmap (full CI)
 
-- [ ] Publish day: uncomment caches (`ci.yml`, `release.yml`), `id-token`
-      + `attestations` (`release.yml`), register npm trusted publishers.
 - [ ] Platform parity beyond the big 6 + musl (android/riscv/armv7 need
       native runners alongside the `GOOS`/`GOARCH` adds) — see
       [`ref/sass-embedded-go.md`](ref/sass-embedded-go.md) §Binary distribution.

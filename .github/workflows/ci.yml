@@ -31,8 +31,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          # cache disabled while the repo is private
-          # cache: true
+          cache: true
       # The test/spec binaries link C libm unconditionally (`sassmathcgo`
       # has no build tag), so every leg needs a working C compiler: gcc
       # ships on ubuntu runners, clang on macOS runners, mingw gcc on
