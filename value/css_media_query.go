@@ -38,6 +38,12 @@ type CssMediaQuery struct {
 // Conjunction is always true for this form. Matches Dart:
 // CssMediaQuery.type.
 func NewCssMediaQueryType(typ *string, modifier *string, conditions []string) *CssMediaQuery {
+	return newCssMediaQueryType(typ, modifier, conditions)
+}
+
+// newCssMediaQueryType builds a type-form query directly. The public
+// constructor and Merge share it so both copy conditions identically.
+func newCssMediaQueryType(typ *string, modifier *string, conditions []string) *CssMediaQuery {
 	conds := make([]string, len(conditions))
 	copy(conds, conditions)
 	return &CssMediaQuery{
@@ -59,16 +65,23 @@ func NewCssMediaQueryCondition(conditions []string, conjunction *bool) (*CssMedi
 			"If conditions is longer than one element, conjunction may not be null.",
 		)
 	}
-	conds := make([]string, len(conditions))
-	copy(conds, conditions)
 	c := true
 	if conjunction != nil {
 		c = *conjunction
 	}
+	return newCssMediaQueryCondition(conditions, c), nil
+}
+
+// newCssMediaQueryCondition builds a condition-form query with an explicit
+// conjunction. Merge uses it where the public constructor's validation cannot
+// fail but its error return cannot be propagated.
+func newCssMediaQueryCondition(conditions []string, conjunction bool) *CssMediaQuery {
+	conds := make([]string, len(conditions))
+	copy(conds, conditions)
 	return &CssMediaQuery{
-		Conjunction: c,
+		Conjunction: conjunction,
 		Conditions:  conds,
-	}, nil
+	}
 }
 
 // MatchesAllTypes returns whether this media query matches all media types.
@@ -114,10 +127,7 @@ func (q *CssMediaQuery) Merge(other *CssMediaQuery) MediaQueryMergeResult {
 		conditions = append(conditions, q.Conditions...)
 		conditions = append(conditions, other.Conditions...)
 		return &MediaQuerySuccessfulMergeResult{
-			Query: &CssMediaQuery{
-				Conjunction: true,
-				Conditions:  conditions,
-			},
+			Query: newCssMediaQueryCondition(conditions, true),
 		}
 	}
 
@@ -244,16 +254,8 @@ func (q *CssMediaQuery) Merge(other *CssMediaQuery) MediaQueryMergeResult {
 		resultType = other.Type
 	}
 
-	conds := make([]string, len(conditions))
-	copy(conds, conditions)
-
 	return &MediaQuerySuccessfulMergeResult{
-		Query: &CssMediaQuery{
-			Type:        resultType,
-			Modifier:    resultModifier,
-			Conjunction: true,
-			Conditions:  conds,
-		},
+		Query: newCssMediaQueryType(resultType, resultModifier, conditions),
 	}
 }
 
