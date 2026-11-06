@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -1211,15 +1210,6 @@ func (v *EvaluateVisitor) loadedUrlsList() []*sassurl.URL {
 		}
 	}
 	return urls
-}
-
-// defaultNamespace derives the default @use namespace from u: the URL path's
-// basename without its extension, with underscores replaced by hyphens.
-func defaultNamespace(u *sassurl.URL) string {
-	base := filepath.Base(sassurl.DecodeRelativePath(u.Path))
-	ext := filepath.Ext(base)
-	name := base[:len(base)-len(ext)]
-	return strings.ReplaceAll(name, "_", "-")
 }
 
 // bindArguments binds evaluated positional and keyword arguments to params,

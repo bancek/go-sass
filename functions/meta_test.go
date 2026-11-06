@@ -286,6 +286,12 @@ func TestInspectMap(t *testing.T) {
 
 // --- type-of ---
 
+type testModuleRef struct{}
+
+func (testModuleRef) URL() (string, error)             { return "sass:meta", nil }
+func (testModuleRef) Equal(other value.ModuleRef) bool { _, ok := other.(testModuleRef); return ok }
+func (testModuleRef) HashCode() int                    { return 0 }
+
 func TestTypeOf(t *testing.T) {
 	arglist, err := value.NewSassArgumentList(nil, nil, value.ListSeparatorComma)
 	if err != nil {
@@ -306,6 +312,7 @@ func TestTypeOf(t *testing.T) {
 		{"number", num(1), "number"},
 		{"function", value.NewSassFunction(nil), "function"},
 		{"mixin", value.NewSassMixin(nil), "mixin"},
+		{"module", value.NewSassModule(testModuleRef{}), "module"},
 		{"calculation", mkCalc("calc", value.NewUnitlessNumber(1)), "calculation"},
 		{"string", str("foo"), "string"},
 		{"quoted string", quoted("foo"), "string"},

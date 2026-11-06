@@ -384,6 +384,17 @@ func DefaultPlus(self, other Value) (Value, error) {
 		}
 		return nil, sasscommon.NewSassScriptException(fmt.Sprintf("Undefined operation \"%s + %s\".", selfStr, otherStr), nil)
 	}
+	if _, ok := other.(*SassModule); ok {
+		selfStr, err := self.String()
+		if err != nil {
+			return nil, err
+		}
+		otherStr, err := other.String()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sasscommon.NewSassScriptException(fmt.Sprintf("Undefined operation \"%s + %s\".", selfStr, otherStr), nil)
+	}
 	left, err := self.ToCssString(true)
 	if err != nil {
 		return nil, err
@@ -401,6 +412,17 @@ func DefaultPlus(self, other Value) (Value, error) {
 // Matches Dart: Value.minus
 func DefaultMinus(self, other Value) (Value, error) {
 	if _, ok := other.(*SassCalculation); ok {
+		selfStr, err := self.String()
+		if err != nil {
+			return nil, err
+		}
+		otherStr, err := other.String()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sasscommon.NewSassScriptException(fmt.Sprintf("Undefined operation \"%s - %s\".", selfStr, otherStr), nil)
+	}
+	if _, ok := other.(*SassModule); ok {
 		selfStr, err := self.String()
 		if err != nil {
 			return nil, err
@@ -442,6 +464,17 @@ func DefaultTimes(self, other Value) (Value, error) {
 // slash-separation, never numeric division.
 // Matches Dart: Value.dividedBy
 func DefaultDividedBy(self, other Value) (Value, error) {
+	if _, ok := other.(*SassModule); ok {
+		selfStr, err := self.String()
+		if err != nil {
+			return nil, err
+		}
+		otherStr, err := other.String()
+		if err != nil {
+			return nil, err
+		}
+		return nil, sasscommon.NewSassScriptException(fmt.Sprintf("Undefined operation \"%s / %s\".", selfStr, otherStr), nil)
+	}
 	left, err := self.ToCssString(true)
 	if err != nil {
 		return nil, err

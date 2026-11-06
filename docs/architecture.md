@@ -293,7 +293,7 @@ back together — either reintroduces the cycle. See `patterns.md`.
 
 Two consumer-facing surfaces are built on the compiler:
 
-- **`embedded/`** serves the Sass embedded protocol (version 3.2.0,
+- **`embedded/`** serves the Sass embedded protocol (version 3.3.0,
   compiler version 1.104.0, implementation name `"dart-sass"`) over stdio. See
   `ref/embedded.md`.
 - **`cmd/go-sass/`** is the `go-sass` command-line compiler (options, usage, multi-file

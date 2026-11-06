@@ -322,3 +322,27 @@ func (sv *SerializeVisitor) VisitMixin(m *SassMixin) (struct{}, error) {
 	_ = sv.sb.WriteByte(')')
 	return struct{}{}, nil
 }
+
+// VisitModule writes a module value as get-module("namespace") in inspect
+// mode; in CSS mode it raises a script exception naming the inspected module.
+//
+// Matches Dart: _SerializeVisitor.visitModule
+func (sv *SerializeVisitor) VisitModule(m *SassModule) (struct{}, error) {
+	if !sv.inspect {
+		mStr, err := m.String()
+		if err != nil {
+			return struct{}{}, err
+		}
+		return struct{}{}, sasscommon.NewSassScriptException(fmt.Sprintf("%s isn't a valid CSS value.", mStr), nil)
+	}
+	_, _ = sv.sb.WriteString("get-module(")
+	if m.Module != nil {
+		if urlStr, err := m.Module.URL(); err == nil {
+			if namespace, ok := moduleDefaultNamespace(urlStr); ok {
+				sv.visitQuotedString(namespace)
+			}
+		}
+	}
+	_ = sv.sb.WriteByte(')')
+	return struct{}{}, nil
+}

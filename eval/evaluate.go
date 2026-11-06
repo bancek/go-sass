@@ -184,7 +184,7 @@ type EvaluateVisitor struct {
 	stylesheet *value.Stylesheet
 	// preModuleComments maps modules loaded by the current module to loud
 	// comments that should appear before the loaded module.
-	preModuleComments map[sassmodule.Module][]value.CssComment
+	preModuleComments *linkedhashmap.LinkedHashMap[sassmodule.Module, []value.CssComment]
 	// configuration is the configuration for the current module; empty
 	// means the module is not configured.
 	configuration *configuration.Configuration
@@ -592,14 +592,14 @@ func (v *EvaluateVisitor) combineCss(root sassmodule.Module, clone bool) (*value
 	var imports []value.CssNode
 	var css []value.CssNode
 	var sorted []sassmodule.Module
-	seen := make(map[sassmodule.Module]struct{})
+	seen := linkedhashmap.NewLinkedHashSet[sassmodule.Module](sassmodule.ModuleEquals)
 
 	var visitModule func(sassmodule.Module) error
 	visitModule = func(module sassmodule.Module) error {
-		if _, ok := seen[module]; ok {
+		if seen.Contains(module) {
 			return nil
 		}
-		seen[module] = struct{}{}
+		seen.Add(module)
 		if clone {
 			var err error
 			module, err = module.CloneCss()
@@ -608,7 +608,7 @@ func (v *EvaluateVisitor) combineCss(root sassmodule.Module, clone bool) (*value
 			}
 		}
 
-		seenUpstream := make(map[sassmodule.Module]struct{})
+		seenUpstream := linkedhashmap.NewLinkedHashSet[sassmodule.Module](sassmodule.ModuleEquals)
 		for _, upstream := range module.Upstream() {
 			if !upstream.TransitivelyContainsCss() {
 				continue
@@ -616,12 +616,12 @@ func (v *EvaluateVisitor) combineCss(root sassmodule.Module, clone bool) (*value
 
 			// A downstream module can load the same upstream module multiple
 			// times, but we only track pre-module comments for the first load.
-			if _, ok := seenUpstream[upstream]; ok {
+			if seenUpstream.Contains(upstream) {
 				continue
 			}
-			seenUpstream[upstream] = struct{}{}
+			seenUpstream.Add(upstream)
 
-			if comments, ok := module.PreModuleComments()[upstream]; ok {
+			if comments, ok := module.PreModuleComments().Get(upstream); ok {
 				if len(css) == 0 {
 					imports = append(imports, cssCommentSliceToCssNode(comments)...)
 				} else {

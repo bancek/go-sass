@@ -57,6 +57,7 @@ type CompilationDispatcher struct {
 	compilationIDVarint []byte
 	functions           *OpaqueRegistry
 	mixins              *OpaqueRegistry
+	modules             *OpaqueRegistry
 	// IO is the filesystem abstraction used for path-input compiles and
 	// filesystem importers. It defaults to the ambient implementation and
 	// is swapped out in tests.
@@ -189,6 +190,7 @@ func (c *CompilationDispatcher) handleMessage() error {
 func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) (*OutboundMessage_CompileResponse, error) {
 	c.functions = NewOpaqueRegistry()
 	c.mixins = NewOpaqueRegistry()
+	c.modules = NewOpaqueRegistry()
 
 	style := compile.OutputStyleExpanded
 	if request.GetStyle() == OutputStyle_COMPRESSED {
@@ -223,7 +225,7 @@ func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) 
 
 	var globalFunctions []sasscallable.Callable
 	for _, sig := range request.GetGlobalFunctions() {
-		callable, err := hostCallable(c, c.functions, c.mixins, sig, nil)
+		callable, err := hostCallable(c, c.functions, c.mixins, c.modules, sig, nil)
 		if err != nil {
 			return c.buildFailureFromError(err), nil
 		}
@@ -676,10 +678,11 @@ func hostCallable(
 	dispatcher *CompilationDispatcher,
 	functions *OpaqueRegistry,
 	mixins *OpaqueRegistry,
+	modules *OpaqueRegistry,
 	signature string,
 	id *uint32,
 ) (sasscallable.Callable, error) {
-	return NewHostCallable(dispatcher, functions, mixins, signature, id)
+	return NewHostCallable(dispatcher, functions, mixins, modules, signature, id)
 }
 
 // The evalcontext import is otherwise unused in this file; the blank

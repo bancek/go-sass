@@ -1663,18 +1663,8 @@ func (p *StylesheetParser) useNamespace(u *sassurl.URL, start sasscommon.LineSca
 		return &s, nil
 	}
 
-	urlPath := sassurl.DecodeRelativePath(u.Path)
-	basename := urlPath
-	if idx := strings.LastIndex(urlPath, "/"); idx >= 0 {
-		basename = urlPath[idx+1:]
-	}
-	basename = strings.TrimPrefix(basename, "_")
-	if dot := strings.Index(basename, "."); dot >= 0 {
-		basename = basename[:dot]
-	}
-
-	result := basename
-	if _, err := ParseIdentifier(result); err != nil {
+	result, valid := DefaultNamespace(u)
+	if !valid {
 		span, err := p.spanFrom(start)
 		if err != nil {
 			return nil, err

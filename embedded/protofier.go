@@ -31,6 +31,7 @@ type Protofier struct {
 	dispatcher    *CompilationDispatcher
 	functions     *OpaqueRegistry
 	mixins        *OpaqueRegistry
+	modules       *OpaqueRegistry
 	argumentLists []*value.SassArgumentList
 }
 
@@ -40,11 +41,12 @@ type Protofier struct {
 // argument-list IDs it hands out are only meaningful for that call.
 //
 // Matches Dart: Protofier constructor
-func NewProtofier(dispatcher *CompilationDispatcher, functions, mixins *OpaqueRegistry) *Protofier {
+func NewProtofier(dispatcher *CompilationDispatcher, functions, mixins, modules *OpaqueRegistry) *Protofier {
 	return &Protofier{
 		dispatcher: dispatcher,
 		functions:  functions,
 		mixins:     mixins,
+		modules:    modules,
 	}
 }
 
@@ -149,6 +151,10 @@ func (p *Protofier) Protofy(v value.Value) (*Value, error) {
 	case *value.SassMixin:
 		result.Value = &Value_CompilerMixin_{CompilerMixin: &Value_CompilerMixin{
 			Id: uint32(p.mixins.GetID(val)),
+		}}
+	case *value.SassModule:
+		result.Value = &Value_CompilerModule_{CompilerModule: &Value_CompilerModule{
+			Id: uint32(p.modules.GetID(val)),
 		}}
 	case *value.SassBoolean:
 		if val.Value {
@@ -351,7 +357,7 @@ func (p *Protofier) deprotofy(v *Value) (value.Value, error) {
 		hf := v.GetHostFunction()
 		hfID := hf.GetId()
 		callable, err := hostCallable(
-			p.dispatcher, p.functions, p.mixins, hf.GetSignature(), &hfID)
+			p.dispatcher, p.functions, p.mixins, p.modules, hf.GetSignature(), &hfID)
 		if err != nil {
 			return nil, err
 		}
@@ -365,6 +371,15 @@ func (p *Protofier) deprotofy(v *Value) (value.Value, error) {
 			}
 		}
 		return nil, paramsError(fmt.Sprintf("CompilerMixin.id %d doesn't match any known mixins", id))
+
+	case *Value_CompilerModule_:
+		id := int(v.GetCompilerModule().GetId())
+		if m := p.modules.Get(id); m != nil {
+			if sm, ok := m.(*value.SassModule); ok {
+				return sm, nil
+			}
+		}
+		return nil, paramsError(fmt.Sprintf("CompilerModule.id %d doesn't match any known modules", id))
 
 	case *Value_Calculation_:
 		return p.deprotofyCalculation(v.GetCalculation())

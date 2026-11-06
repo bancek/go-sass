@@ -82,17 +82,18 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 				return nil, err
 			}
 			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
-			var namespace *string
-			if len(args) > 1 && args[1] != nil && args[1] != value.Null {
-				modStr, err := value.AssertString(args[1], new("module"))
+			module, hasModule, err := v.getNullableModule(args[1])
+			if err != nil {
+				return nil, err
+			}
+			var exists bool
+			if hasModule {
+				_, exists = module.Variables().Get(normalizedName)
+			} else {
+				exists, err = v.env.GlobalVariableExists(normalizedName, nil)
 				if err != nil {
 					return nil, err
 				}
-				namespace = &modStr.Text
-			}
-			exists, err := v.env.GlobalVariableExists(normalizedName, namespace)
-			if err != nil {
-				return nil, err
 			}
 			if exists {
 				return value.SassTrue, nil
@@ -121,24 +122,25 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 				return nil, err
 			}
 			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
-			var namespace *string
-			if len(args) > 1 && args[1] != nil && args[1] != value.Null {
-				modStr, err := value.AssertString(args[1], new("module"))
-				if err != nil {
-					return nil, err
-				}
-				namespace = &modStr.Text
-			}
-			exists, err := v.env.FunctionExists(normalizedName, namespace)
+			module, hasModule, err := v.getNullableModule(args[1])
 			if err != nil {
 				return nil, err
 			}
-			if exists {
-				return value.SassTrue, nil
+			var exists bool
+			if hasModule {
+				_, exists = module.Functions().Get(normalizedName)
+			} else {
+				exists, err = v.env.FunctionExists(normalizedName, nil)
+				if err != nil {
+					return nil, err
+				}
+				if !exists {
+					// The built-in table is keyed by raw name, so it is
+					// consulted with the unnormalized spelling.
+					_, exists = v.builtInFunctions[name.Text]
+				}
 			}
-			// The built-in table is keyed by raw name, so it is consulted with
-			// the unnormalized spelling rather than the dashed one.
-			if _, ok := v.builtInFunctions[name.Text]; ok {
+			if exists {
 				return value.SassTrue, nil
 			}
 			return value.SassFalse, nil
@@ -150,17 +152,18 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 				return nil, err
 			}
 			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
-			var namespace *string
-			if len(args) > 1 && args[1] != nil && args[1] != value.Null {
-				modStr, err := value.AssertString(args[1], new("module"))
+			module, hasModule, err := v.getNullableModule(args[1])
+			if err != nil {
+				return nil, err
+			}
+			var exists bool
+			if hasModule {
+				_, exists = module.Mixins().Get(normalizedName)
+			} else {
+				exists, err = v.env.MixinExists(normalizedName, nil)
 				if err != nil {
 					return nil, err
 				}
-				namespace = &modStr.Text
-			}
-			exists, err := v.env.MixinExists(normalizedName, namespace)
-			if err != nil {
-				return nil, err
 			}
 			if exists {
 				return value.SassTrue, nil
@@ -179,13 +182,9 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 		}),
 
 		newFn("module-variables", "$module", func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
-			modStr, err := value.AssertString(args[0], new("module"))
+			mod, err := v.getModule(args[0])
 			if err != nil {
 				return nil, err
-			}
-			mod := v.env.Modules()[modStr.Text]
-			if mod == nil {
-				return nil, sasscommon.NewSassScriptException(fmt.Sprintf("There is no module with namespace %q.", modStr.Text), nil)
 			}
 			m := value.EmptySassMap()
 			for name, val := range mod.Variables().Entries() {
@@ -195,13 +194,9 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 		}),
 
 		newFn("module-functions", "$module", func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
-			modStr, err := value.AssertString(args[0], new("module"))
+			mod, err := v.getModule(args[0])
 			if err != nil {
 				return nil, err
-			}
-			mod := v.env.Modules()[modStr.Text]
-			if mod == nil {
-				return nil, sasscommon.NewSassScriptException(fmt.Sprintf("There is no module with namespace %q.", modStr.Text), nil)
 			}
 			m := value.EmptySassMap()
 			for name, fn := range mod.Functions().Entries() {
@@ -212,13 +207,9 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 		}),
 
 		newFn("module-mixins", "$module", func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
-			modStr, err := value.AssertString(args[0], new("module"))
+			mod, err := v.getModule(args[0])
 			if err != nil {
 				return nil, err
-			}
-			mod := v.env.Modules()[modStr.Text]
-			if mod == nil {
-				return nil, sasscommon.NewSassScriptException(fmt.Sprintf("There is no module with namespace %q.", modStr.Text), nil)
 			}
 			m := value.EmptySassMap()
 			for name, mix := range mod.Mixins().Entries() {
@@ -238,10 +229,13 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 				return nil, err
 			}
 			css := args[1].IsTruthy()
-			module := args[2].RealNull()
+			module, hasModule, err := v.getNullableModule(args[2])
+			if err != nil {
+				return nil, err
+			}
 
 			if css {
-				if module != nil {
+				if hasModule {
 					return nil, sasscommon.NewSassScriptException("$css and $module may not both be passed at once.", nil)
 				}
 				pc := functions.NewPlainCssCallable(name.Text)
@@ -250,23 +244,20 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			}
 
 			var callable sasscallable.Callable
-			// The environment miss reports at the call site, not inside the
-			// meta machinery.
 			callable, err = addExceptionSpan(v, ec.CallableNode(), func() (sasscallable.Callable, error) {
 				normalizedName := strings.ReplaceAll(name.Text, "_", "-")
-				var namespace *string
-				if module != nil {
-					modStr, err := value.AssertString(module, new("module"))
-					if err != nil {
-						return nil, err
+				if hasModule {
+					c, ok := module.Functions().Get(normalizedName)
+					if !ok {
+						return nil, nil
 					}
-					namespace = &modStr.Text
+					return c, nil
 				}
-				local, err := v.env.GetFunction(normalizedName, namespace)
+				local, err := v.env.GetFunction(normalizedName, nil)
 				if err != nil {
 					return nil, err
 				}
-				if local != nil || namespace != nil {
+				if local != nil {
 					return local, nil
 				}
 				return v.builtInFunctions[normalizedName], nil
@@ -291,18 +282,21 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 				return nil, err
 			}
 			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
-			var namespace *string
-			if len(args) > 1 && args[1] != nil && args[1] != value.Null {
-				modStr, err := value.AssertString(args[1], new("module"))
-				if err != nil {
-					return nil, err
-				}
-				namespace = &modStr.Text
+			module, hasModule, err := v.getNullableModule(args[1])
+			if err != nil {
+				return nil, err
 			}
 			// Mixins resolve the same way, without the built-in fallback that
 			// functions get.
 			callable, err := addExceptionSpan(v, ec.CallableNode(), func() (sasscallable.Callable, error) {
-				return v.env.GetMixin(normalizedName, namespace)
+				if hasModule {
+					c, ok := module.Mixins().Get(normalizedName)
+					if !ok {
+						return nil, nil
+					}
+					return c, nil
+				}
+				return v.env.GetMixin(normalizedName, nil)
 			}, nil)
 			if err != nil {
 				return nil, err
@@ -316,6 +310,22 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			}
 			sm := value.NewSassMixinWithCompileContext(callable, v.compileContext)
 			return sm, nil
+		}),
+
+		newFn("get-module", "$module", func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
+			module, err := v.getModule(args[0])
+			if err != nil {
+				return nil, err
+			}
+			return value.NewSassModuleWithCompileContext(module, v.compileContext), nil
+		}),
+
+		newFn("load", "$url, $with: null", func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
+			module, err := v.loadModuleForSassScript(ec.CallableNode(), args, "load")
+			if err != nil {
+				return nil, err
+			}
+			return value.NewSassModuleWithCompileContext(module, v.compileContext), nil
 		}),
 
 		// call($function, $args...): re-enters the evaluator with a synthetic
@@ -402,9 +412,140 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 	return fns
 }
 
+// loadModuleForSassScript loads a module as for meta.load()/meta.load-css().
+//
+// The caller is the SassScript name used in the stack frame and errors.
+func (v *EvaluateVisitor) loadModuleForSassScript(callableNode sasscommon.AstNode, args []value.Value, caller string) (sassmodule.Module, error) {
+	urlStr, err := value.AssertString(args[0], new("url"))
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := sassurl.Parse(urlStr.Text)
+	if err != nil {
+		return nil, err
+	}
+	var withMap *value.SassMap
+	if withVal := args[1].RealNull(); withVal != nil {
+		withMap, err = value.AssertMap(withVal, new("with"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var config *configuration.Configuration
+	if withMap != nil {
+		values := make(map[string]*configuration.ConfiguredValue)
+		span, err := callableNode.Span()
+		if err != nil {
+			return nil, err
+		}
+		privateDeprecation := false
+		for variable, val := range withMap.Entries() {
+			nameStr, err := value.AssertString(variable, new("with key"))
+			if err != nil {
+				return nil, err
+			}
+			name := strings.ReplaceAll(nameStr.Text, "_", "-")
+			if _, exists := values[name]; exists {
+				return nil, sasscommon.NewSassScriptException(
+					fmt.Sprintf("The variable $%s was configured twice.", name), nil)
+			}
+			if strings.HasPrefix(name, "-") && !privateDeprecation {
+				privateDeprecation = true
+				if err := v.ec.WarnDeprecation(
+					fmt.Sprintf("Configuring private variables (such as $%s) is "+
+						"deprecated.\n"+
+						"This will be an error in Dart Sass 2.0.0.", name),
+					deprecation.WithPrivate); err != nil {
+					return nil, err
+				}
+			}
+			values[name] = configuration.NewConfiguredValueExplicit(val, &span, callableNode)
+		}
+		config = configuration.NewExplicitConfiguration(values, callableNode).Configuration
+	}
+
+	callableSpan, err := callableNode.Span()
+	if err != nil {
+		return nil, err
+	}
+	baseURL, err := callableSpan.SourceURL()
+	if err != nil {
+		return nil, err
+	}
+
+	var loaded sassmodule.Module
+	err = v.loadModule(parsed, caller+"()", callableNode, config, true, baseURL, func(module sassmodule.Module, firstLoad bool) error {
+		loaded = module
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if config != nil && config.IsExplicit() && !config.IsEmpty() {
+		vals := config.Values()
+		for name, cv := range vals {
+			return nil, v.exception(
+				fmt.Sprintf("$%s was not declared with !default in the @used module.", name),
+				cv.ConfigurationSpan)
+		}
+	}
+	return loaded, nil
+}
+
+// getNullableModule ports Dart's _getNullableModule: a module value is
+// compile-context-checked, a string names a module, and null yields none.
+func (v *EvaluateVisitor) getNullableModule(module value.Value) (sassmodule.Module, bool, error) {
+	if module == nil || module == value.Null {
+		return nil, false, nil
+	}
+	switch m := module.(type) {
+	case *value.SassModule:
+		asserted, err := m.AssertCompileContext(v.compileContext)
+		if err != nil {
+			return nil, false, err
+		}
+		sm, ok := asserted.Module.(sassmodule.Module)
+		if !ok {
+			return nil, false, sasscommon.NewSassScriptException(
+				fmt.Sprintf("%s is neither a string nor a module reference.", asserted), new("module"))
+		}
+		return sm, true, nil
+	case *value.SassString:
+		sm, err := v.env.GetModule(m.Text)
+		if err != nil {
+			return nil, false, err
+		}
+		return sm, true, nil
+	default:
+		moduleStr, err := module.String()
+		if err != nil {
+			return nil, false, err
+		}
+		return nil, false, sasscommon.NewSassScriptException(
+			fmt.Sprintf("%s is neither a string nor a module reference.", moduleStr), new("module"))
+	}
+}
+
+func (v *EvaluateVisitor) getModule(module value.Value) (sassmodule.Module, error) {
+	sm, ok, err := v.getNullableModule(module)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		moduleStr, strErr := module.String()
+		if strErr != nil {
+			return nil, strErr
+		}
+		return nil, sasscommon.NewSassScriptException(
+			fmt.Sprintf("%s is neither a string nor a module reference.", moduleStr), new("module"))
+	}
+	return sm, nil
+}
+
 // createMetaMixins returns the evaluator-context sass:meta mixins, which close
-// over the visitor to re-enter evaluation (load-css) or apply a mixin value
-// (apply).
+// over the visitor to re-enter evaluation (css/load-css) or apply a mixin
+// value (apply).
 func (v *EvaluateVisitor) createMetaMixins(env *sassenv.Environment) []sasscallable.Callable {
 	newMixin := func(name, params string, acceptsContent bool, fn sasscallable.CallableFn) sasscallable.Callable {
 		c, err := functions.NewBuiltInCallableFunction(name, params, "sass:meta", fn)
@@ -418,99 +559,36 @@ func (v *EvaluateVisitor) createMetaMixins(env *sassenv.Environment) []sasscalla
 	}
 
 	mixins := []sasscallable.Callable{
-		newMixin("load-css", "$url, $with: null", false, func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
-			// A null $with means an empty configuration, never the ambient
-			// one: only explicitly configured variables reach the module.
-			urlStr, err := value.AssertString(args[0], new("url"))
+		newMixin("css", "$module", false, func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
+			module, err := v.getModule(args[0])
 			if err != nil {
 				return nil, err
 			}
-			parsed, err := sassurl.Parse(urlStr.Text)
-			// Go's URL parser can reject inputs Dart's accepts; fall back to
-			// a path-only URL rather than rejecting the input.
-			if err != nil {
-				parsed = &sassurl.URL{Path: urlStr.Text}
-			}
-			var withMap *value.SassMap
-			if withVal := args[1].RealNull(); withVal != nil {
-				withMap, err = value.AssertMap(withVal, new("with"))
-				if err != nil {
-					return nil, err
-				}
-			}
-
 			callableNode := ec.CallableNode()
-			var config *configuration.Configuration
-			if withMap != nil {
-				values := make(map[string]*configuration.ConfiguredValue)
-				span, err := callableNode.Span()
-				if err != nil {
-					return nil, err
-				}
-				privateDeprecation := false
-				for variable, val := range withMap.Entries() {
-					nameStr, err := value.AssertString(variable, new("with key"))
-					if err != nil {
-						return nil, err
-					}
-					name := strings.ReplaceAll(nameStr.Text, "_", "-")
-					if _, exists := values[name]; exists {
-						return nil, sasscommon.NewSassScriptException(
-							fmt.Sprintf("The variable $%s was configured twice.", name), nil)
-					}
-					// Configuring private variables warns only once per call.
-					if strings.HasPrefix(name, "-") && !privateDeprecation {
-						privateDeprecation = true
-						if err := ec.WarnDeprecation(
-							fmt.Sprintf("Configuring private variables (such as $%s) is "+
-								"deprecated.\n"+
-								"This will be an error in Dart Sass 2.0.0.", name),
-							deprecation.WithPrivate); err != nil {
-							return nil, err
-						}
-					}
-					values[name] = configuration.NewConfiguredValueExplicit(val, &span, callableNode)
-				}
-				explicit := configuration.NewExplicitConfiguration(values, callableNode)
-				config = explicit.Configuration
-			}
-
-			callableSpan, err := callableNode.Span()
-			if err != nil {
-				return nil, err
-			}
-			baseURL, err := callableSpan.SourceURL()
-			if err != nil {
-				return nil, err
-			}
-
-			// The module loads relative to the call site, its CSS is combined
-			// (cloned, since the module may be reused) and evaluated into the
-			// current stylesheet.
-			err = v.loadModule(parsed, "load-css()", callableNode, config, true, baseURL, func(module sassmodule.Module, firstLoad bool) error {
+			return WithStackFrame(v, "css()", callableNode, func() (value.Value, error) {
 				combined, err := v.combineCss(module, true)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				_, err = v.VisitCssStylesheet(combined)
-				return err
+				return nil, err
 			})
+		}),
+
+		newMixin("load-css", "$url, $with: null", false, func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
+			module, err := v.loadModuleForSassScript(ec.CallableNode(), args, "load-css")
 			if err != nil {
 				return nil, err
 			}
-
-			// Configured variables that the module never declared with !default
-			// are an error, reported at the configuration span.
-			if config != nil && config.IsExplicit() && !config.IsEmpty() {
-				vals := config.Values()
-				for name, cv := range vals {
-					return nil, v.exception(
-						fmt.Sprintf("$%s was not declared with !default in the @used module.", name),
-						cv.ConfigurationSpan)
+			callableNode := ec.CallableNode()
+			return WithStackFrame(v, "load-css()", callableNode, func() (value.Value, error) {
+				combined, err := v.combineCss(module, true)
+				if err != nil {
+					return nil, err
 				}
-			}
-
-			return nil, nil
+				_, err = v.VisitCssStylesheet(combined)
+				return nil, err
+			})
 		}),
 
 		newMixin("apply", "$mixin, $args...", true, func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {

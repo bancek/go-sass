@@ -11,7 +11,9 @@ package sassenv
 import (
 	"fmt"
 	"maps"
+	"reflect"
 
+	"github.com/bancek/go-sass/linkedhashmap"
 	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/configuration"
@@ -35,13 +37,13 @@ type Environment struct {
 	namespaceNodes map[string]sasscommon.AstNode
 
 	// Namespaceless modules (those loaded with @use ... as *).
-	globalModules map[sassmodule.Module]sasscommon.AstNode
+	globalModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode]
 
 	// Modules imported into the current scope.
-	importedModules map[sassmodule.Module]sasscommon.AstNode
+	importedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode]
 
 	// Modules forwarded by this module, mapped to their @forward rule nodes.
-	forwardedModules map[sassmodule.Module]sasscommon.AstNode
+	forwardedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode]
 
 	// Modules forwarded by nested imports at each lexical scope level beneath
 	// the global scope. Nil until needed.
@@ -97,8 +99,8 @@ func NewEnvironment() *Environment {
 	return &Environment{
 		modules:               make(map[string]sassmodule.Module),
 		namespaceNodes:        make(map[string]sasscommon.AstNode),
-		globalModules:         make(map[sassmodule.Module]sasscommon.AstNode),
-		importedModules:       make(map[sassmodule.Module]sasscommon.AstNode),
+		globalModules:         linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals),
+		importedModules:       linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals),
 		allModules:            make([]sassmodule.Module, 0),
 		variables:             []*orderedmap.LinkedMap[string, value.Value]{orderedmap.New[string, value.Value]()},
 		variableNodes:         []*orderedmap.LinkedMap[string, sasscommon.AstNode]{orderedmap.New[string, sasscommon.AstNode]()},
@@ -118,9 +120,9 @@ func NewEnvironment() *Environment {
 func newEnvironmentWithFields(
 	modules map[string]sassmodule.Module,
 	namespaceNodes map[string]sasscommon.AstNode,
-	globalModules map[sassmodule.Module]sasscommon.AstNode,
-	importedModules map[sassmodule.Module]sasscommon.AstNode,
-	forwardedModules map[sassmodule.Module]sasscommon.AstNode,
+	globalModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode],
+	importedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode],
+	forwardedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode],
 	nestedForwardedModules [][]sassmodule.Module,
 	allModules []sassmodule.Module,
 	variables []*orderedmap.LinkedMap[string, value.Value],
@@ -232,7 +234,7 @@ func (e *Environment) ForImport() *Environment {
 	return newEnvironmentWithFields(
 		make(map[string]sassmodule.Module),
 		make(map[string]sasscommon.AstNode),
-		make(map[sassmodule.Module]sasscommon.AstNode),
+		linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals),
 		e.importedModules,
 		nil,
 		e.nestedForwardedModules,
@@ -257,7 +259,7 @@ func (e *Environment) ForImport() *Environment {
 // Matches Dart: Environment.addModule
 func (e *Environment) AddModule(module sassmodule.Module, nodeWithSpan sasscommon.AstNode, namespace *string) error {
 	if namespace == nil {
-		e.globalModules[module] = nodeWithSpan
+		e.globalModules.Put(module, nodeWithSpan)
 		e.allModules = append(e.allModules, module)
 
 		// Namespaceless modules share one variable scope with the global
@@ -298,7 +300,7 @@ func (e *Environment) AddModule(module sassmodule.Module, nodeWithSpan sasscommo
 // Matches Dart: Environment.forwardModule
 func (e *Environment) ForwardModule(module sassmodule.Module, rule *value.ForwardRule, nodeWithSpan sasscommon.AstNode) error {
 	if e.forwardedModules == nil {
-		e.forwardedModules = make(map[sassmodule.Module]sasscommon.AstNode)
+		e.forwardedModules = linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals)
 	}
 
 	var view sassmodule.Module
@@ -311,7 +313,7 @@ func (e *Environment) ForwardModule(module sassmodule.Module, rule *value.Forwar
 	// Every pair of forwarded member sets must agree: a name defined by two
 	// different origins is ambiguous downstream, so each kind (variables,
 	// functions, mixins) is checked against every already-forwarded module.
-	for other := range e.forwardedModules {
+	for other := range e.forwardedModules.Keys() {
 		if err := assertNoConflicts(
 			view.Variables(),
 			other.Variables(),
@@ -347,7 +349,7 @@ func (e *Environment) ForwardModule(module sassmodule.Module, rule *value.Forwar
 	// Add the original module to _allModules (rather than the ForwardedModuleView)
 	// so that we can de-duplicate upstream modules using ==.
 	e.allModules = append(e.allModules, module)
-	e.forwardedModules[view] = nodeWithSpan
+	e.forwardedModules.Put(view, nodeWithSpan)
 	return nil
 }
 
@@ -366,7 +368,7 @@ func assertNoConflicts[V any](
 	newModule sassmodule.Module,
 	oldModule sassmodule.Module,
 	memberType string,
-	forwardedModules map[sassmodule.Module]sasscommon.AstNode,
+	forwardedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode],
 ) error {
 	var smaller, larger orderedmap.Map[string, V]
 	var smallerModule, largerModule sassmodule.Module
@@ -412,7 +414,7 @@ func assertNoConflicts[V any](
 		}
 
 		secondary := make(map[sasscommon.FileSpan]string)
-		if node, ok := forwardedModules[oldModule]; ok {
+		if node, ok := forwardedModules.Get(oldModule); ok {
 			span, err := node.Span()
 			if err != nil {
 				return err
@@ -454,34 +456,34 @@ func (e *Environment) ImportForwards(module sassmodule.Module) error {
 	// forwarded in this module: re-adding them would duplicate members and
 	// re-trigger conflict checks that already passed.
 	if e.forwardedModules != nil {
-		filtered := make(map[sassmodule.Module]sasscommon.AstNode)
-		for mod, node := range forwarded {
-			if _, inForwarded := e.forwardedModules[mod]; inForwarded {
-				if _, inGlobal := e.globalModules[mod]; inGlobal {
+		filtered := linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals)
+		for mod, node := range forwarded.Entries() {
+			if e.forwardedModules.Has(mod) {
+				if e.globalModules.Has(mod) {
 					continue
 				}
 			}
-			filtered[mod] = node
+			filtered.Put(mod, node)
 		}
 		forwarded = filtered
 	} else {
-		e.forwardedModules = make(map[sassmodule.Module]sasscommon.AstNode)
+		e.forwardedModules = linkedhashmap.New[sassmodule.Module, sasscommon.AstNode](sassmodule.ModuleEquals)
 	}
 
 	forwardedVariableNames := make(map[string]struct{})
-	for mod := range forwarded {
+	for mod := range forwarded.Keys() {
 		for name := range mod.Variables().Keys() {
 			forwardedVariableNames[name] = struct{}{}
 		}
 	}
 	forwardedFunctionNames := make(map[string]struct{})
-	for mod := range forwarded {
+	for mod := range forwarded.Keys() {
 		for name := range mod.Functions().Keys() {
 			forwardedFunctionNames[name] = struct{}{}
 		}
 	}
 	forwardedMixinNames := make(map[string]struct{})
-	for mod := range forwarded {
+	for mod := range forwarded.Keys() {
 		for name := range mod.Mixins().Keys() {
 			forwardedMixinNames[name] = struct{}{}
 		}
@@ -492,46 +494,50 @@ func (e *Environment) ImportForwards(module sassmodule.Module) error {
 		// forwarded that would otherwise conflict with the @imported members.
 		// A view that ends up with no members and no CSS is dropped rather
 		// than kept as dead weight.
-		importedMods := make([]sassmodule.Module, 0, len(e.importedModules))
-		importedNodes := make([]sasscommon.AstNode, 0, len(e.importedModules))
-		for mod, node := range e.importedModules {
+		importedMods := make([]sassmodule.Module, 0, e.importedModules.Len())
+		importedNodes := make([]sasscommon.AstNode, 0, e.importedModules.Len())
+		for mod, node := range e.importedModules.Entries() {
 			importedMods = append(importedMods, mod)
 			importedNodes = append(importedNodes, node)
 		}
 		for i, mod := range importedMods {
 			if shadowed := sassmodule.NewShadowedModuleViewIfNecessary(mod, forwardedVariableNames, forwardedFunctionNames, forwardedMixinNames); shadowed != nil {
-				delete(e.importedModules, mod)
+				e.importedModules.Delete(mod)
 				empty, emptyErr := shadowed.IsEmpty()
 				if emptyErr != nil {
 					return emptyErr
 				}
 				if !empty {
-					e.importedModules[shadowed] = importedNodes[i]
+					e.importedModules.Put(shadowed, importedNodes[i])
 				}
 			}
 		}
 
-		forwardedMods := make([]sassmodule.Module, 0, len(e.forwardedModules))
-		forwardedNodes := make([]sasscommon.AstNode, 0, len(e.forwardedModules))
-		for mod, node := range e.forwardedModules {
+		forwardedMods := make([]sassmodule.Module, 0, e.forwardedModules.Len())
+		forwardedNodes := make([]sasscommon.AstNode, 0, e.forwardedModules.Len())
+		for mod, node := range e.forwardedModules.Entries() {
 			forwardedMods = append(forwardedMods, mod)
 			forwardedNodes = append(forwardedNodes, node)
 		}
 		for i, mod := range forwardedMods {
 			if shadowed := sassmodule.NewShadowedModuleViewIfNecessary(mod, forwardedVariableNames, forwardedFunctionNames, forwardedMixinNames); shadowed != nil {
-				delete(e.forwardedModules, mod)
+				e.forwardedModules.Delete(mod)
 				empty, emptyErr := shadowed.IsEmpty()
 				if emptyErr != nil {
 					return emptyErr
 				}
 				if !empty {
-					e.forwardedModules[shadowed] = forwardedNodes[i]
+					e.forwardedModules.Put(shadowed, forwardedNodes[i])
 				}
 			}
 		}
 
-		maps.Copy(e.importedModules, forwarded)
-		maps.Copy(e.forwardedModules, forwarded)
+		for mod, node := range forwarded.Entries() {
+			e.importedModules.Put(mod, node)
+		}
+		for mod, node := range forwarded.Entries() {
+			e.forwardedModules.Put(mod, node)
+		}
 	} else {
 		if e.nestedForwardedModules == nil {
 			e.nestedForwardedModules = make([][]sassmodule.Module, len(e.variables)-1)
@@ -540,7 +546,7 @@ func (e *Environment) ImportForwards(module sassmodule.Module) error {
 			}
 		}
 		last := len(e.nestedForwardedModules) - 1
-		for mod := range forwarded {
+		for mod := range forwarded.Keys() {
 			e.nestedForwardedModules[last] = append(e.nestedForwardedModules[last], mod)
 		}
 	}
@@ -575,7 +581,7 @@ func (e *Environment) ImportForwards(module sassmodule.Module) error {
 // Matches Dart: Environment.getVariable
 func (e *Environment) GetVariable(name string, namespace *string) (value.Value, error) {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -631,7 +637,7 @@ func (e *Environment) getVariableFromGlobalModule(name string) (value.Value, err
 // Matches Dart: Environment.getVariableNode
 func (e *Environment) GetVariableNode(name string, namespace *string) (sasscommon.AstNode, error) {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -702,7 +708,7 @@ func (e *Environment) VariableExists(name string) (bool, error) {
 // GlobalVariableExists returns whether a global variable named name exists.
 func (e *Environment) GlobalVariableExists(name string, namespace *string) (bool, error) {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return false, err
 		}
@@ -744,7 +750,7 @@ func (e *Environment) variableIndex(name string) int {
 // Matches Dart: Environment.setVariable
 func (e *Environment) SetVariable(name string, val value.Value, nodeWithSpan sasscommon.AstNode, namespace *string, global bool) error {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return err
 		}
@@ -870,7 +876,7 @@ func (e *Environment) MarkVariableConfigurable(name string) {
 // Matches Dart: Environment.getFunction
 func (e *Environment) GetFunction(name string, namespace *string) (sasscallable.Callable, error) {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -942,7 +948,7 @@ func (e *Environment) SetFunction(callable sasscallable.Callable) {
 // Matches Dart: Environment.getMixin
 func (e *Environment) GetMixin(name string, namespace *string) (sasscallable.Callable, error) {
 	if namespace != nil {
-		mod, err := e.getModule(*namespace)
+		mod, err := e.GetModule(*namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -1149,7 +1155,7 @@ func (e *Environment) ToImplicitConfiguration() (*configuration.Configuration, e
 	for i := 0; i < len(e.variables); i++ {
 		var modules []sassmodule.Module
 		if i == 0 {
-			for module := range e.importedModules {
+			for module := range e.importedModules.Keys() {
 				modules = append(modules, module)
 			}
 		} else if e.nestedForwardedModules != nil && i-1 < len(e.nestedForwardedModules) {
@@ -1191,7 +1197,7 @@ func (e *Environment) ToImplicitConfiguration() (*configuration.Configuration, e
 // while members merge frame-0 locals over the forwarded modules.
 //
 // Matches Dart: Environment.toModule
-func (e *Environment) ToModule(css_ *value.CssStylesheet, preModuleComments map[sassmodule.Module][]value.CssComment, extensionStore extend.ExtensionStore) sassmodule.Module {
+func (e *Environment) ToModule(css_ *value.CssStylesheet, preModuleComments *linkedhashmap.LinkedHashMap[sassmodule.Module, []value.CssComment], extensionStore extend.ExtensionStore) sassmodule.Module {
 	if !e.AtRoot() {
 		panic("assertion failed: atRoot must be true")
 	}
@@ -1219,12 +1225,12 @@ func (e *Environment) ToDummyModule() sassmodule.Module {
 // callers add spans.
 //
 // Matches Dart: Environment._getModule
-func (e *Environment) getModule(namespace string) (sassmodule.Module, error) {
+func (e *Environment) GetModule(namespace string) (sassmodule.Module, error) {
 	if module, ok := e.modules[namespace]; ok {
 		return module, nil
 	}
 	return nil, sasscommon.NewSassScriptException(
-		fmt.Sprintf("There is no module with the namespace \"%s\".", namespace),
+		fmt.Sprintf("There is no module with namespace \"%s\".", namespace),
 		nil)
 }
 
@@ -1255,7 +1261,7 @@ func fromOneModule[T comparable](e *Environment, name string, typeName string, c
 
 	// Imported modules behave the same: first hit wins, since @import merges
 	// into one scope where later imports already shadowed earlier ones.
-	for module := range e.importedModules {
+	for module := range e.importedModules.Keys() {
 		if val := callback(module); val != zero {
 			return val, nil
 		}
@@ -1266,7 +1272,7 @@ func fromOneModule[T comparable](e *Environment, name string, typeName string, c
 	// Global modules coexist, so two hits must be the same definition:
 	// callables compare by reference, variables by origin identity. A
 	// genuine conflict blames every @use that includes the member.
-	for module := range e.globalModules {
+	for module := range e.globalModules.Keys() {
 		valInModule := callback(module)
 		if valInModule == zero {
 			continue
@@ -1289,7 +1295,7 @@ func fromOneModule[T comparable](e *Environment, name string, typeName string, c
 
 		if val != zero {
 			spans := make(map[sasscommon.FileSpan]string)
-			for mod, node := range e.globalModules {
+			for mod, node := range e.globalModules.Entries() {
 				if callback(mod) != zero {
 					s, err := node.Span()
 					if err != nil {
@@ -1312,10 +1318,10 @@ func fromOneModule[T comparable](e *Environment, name string, typeName string, c
 	return val, nil
 }
 
-// moduleKeys extracts the keys of a map[Module]T as a []sassmodule.Module.
-func moduleKeys[T any](m map[sassmodule.Module]T) []sassmodule.Module {
-	keys := make([]sassmodule.Module, 0, len(m))
-	for k := range m {
+// moduleKeys extracts the keys of a module-keyed linked hash map.
+func moduleKeys[T any](m *linkedhashmap.LinkedHashMap[sassmodule.Module, T]) []sassmodule.Module {
+	keys := make([]sassmodule.Module, 0, m.Len())
+	for k := range m.Keys() {
 		keys = append(keys, k)
 	}
 	return keys
@@ -1335,7 +1341,7 @@ type environmentModule struct {
 
 	upstream                       []sassmodule.Module
 	css                            *value.CssStylesheet
-	preModuleComments              map[sassmodule.Module][]value.CssComment
+	preModuleComments              *linkedhashmap.LinkedHashMap[sassmodule.Module, []value.CssComment]
 	extensionStore                 extend.ExtensionStore
 	variables                      orderedmap.Map[string, value.Value]
 	variableNodes                  orderedmap.Map[string, sasscommon.AstNode]
@@ -1349,9 +1355,9 @@ type environmentModule struct {
 func newEnvironmentModule(
 	env *Environment,
 	css_ *value.CssStylesheet,
-	preModuleComments map[sassmodule.Module][]value.CssComment,
+	preModuleComments *linkedhashmap.LinkedHashMap[sassmodule.Module, []value.CssComment],
 	extensionStore extend.ExtensionStore,
-	forwardedModules map[sassmodule.Module]sasscommon.AstNode,
+	forwardedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode],
 ) *environmentModule {
 	// Pre-compute the modulesByVariable map and forwarded module list.
 	modulesByVariable := makeModulesByVariable(forwardedModules)
@@ -1378,7 +1384,7 @@ func newEnvironmentModule(
 
 	// Transitivity is sticky: CSS or extensions anywhere upstream (or in the
 	// fresh tree itself) mark the whole module.
-	transitiveCss := len(css_.Children()) > 0 || len(preModuleComments) > 0
+	transitiveCss := len(css_.Children()) > 0 || preModuleComments.Len() > 0
 	if !transitiveCss {
 		for _, module := range env.allModules {
 			if module.TransitivelyContainsCss() {
@@ -1402,7 +1408,7 @@ func newEnvironmentModule(
 	}
 
 	if preModuleComments == nil {
-		preModuleComments = make(map[sassmodule.Module][]value.CssComment)
+		preModuleComments = linkedhashmap.New[sassmodule.Module, []value.CssComment](sassmodule.ModuleEquals)
 	}
 
 	return &environmentModule{
@@ -1429,13 +1435,13 @@ func newEnvironmentModule(
 // This flattening keeps lookups flat instead of O(depth).
 //
 // Matches Dart: _EnvironmentModule._makeModulesByVariable
-func makeModulesByVariable(forwardedModules map[sassmodule.Module]sasscommon.AstNode) map[string]sassmodule.Module {
-	if len(forwardedModules) == 0 {
+func makeModulesByVariable(forwardedModules *linkedhashmap.LinkedHashMap[sassmodule.Module, sasscommon.AstNode]) map[string]sassmodule.Module {
+	if forwardedModules.Len() == 0 {
 		return make(map[string]sassmodule.Module)
 	}
 
 	modulesByVariable := make(map[string]sassmodule.Module)
-	for module := range forwardedModules {
+	for module := range forwardedModules.Keys() {
 		if envMod, ok := module.(*environmentModule); ok {
 			// Flatten nested forwarded modules to avoid O(depth) overhead.
 			for _, child := range envMod.modulesByVariable {
@@ -1538,8 +1544,17 @@ func (m *environmentModule) CSS() (*value.CssStylesheet, error) {
 	return m.css, nil
 }
 
-func (m *environmentModule) PreModuleComments() map[sassmodule.Module][]value.CssComment {
+func (m *environmentModule) PreModuleComments() *linkedhashmap.LinkedHashMap[sassmodule.Module, []value.CssComment] {
 	return m.preModuleComments
+}
+
+func (m *environmentModule) Equal(other value.ModuleRef) bool {
+	o, ok := other.(*environmentModule)
+	return ok && m == o
+}
+
+func (m *environmentModule) HashCode() int {
+	return int(reflect.ValueOf(m).Pointer())
 }
 
 func (m *environmentModule) TransitivelyContainsCss() bool {
@@ -1607,12 +1622,12 @@ func (m *environmentModule) CouldHaveBeenConfigured(variables map[string]struct{
 	}
 
 	// Find forwarded modules whose variables overlap with variables and check them.
-	checked := make(map[sassmodule.Module]struct{})
+	checked := linkedhashmap.NewLinkedHashSet[sassmodule.Module](sassmodule.ModuleEquals)
 	if len(variables) < len(m.modulesByVariable) {
 		for name := range variables {
 			if module, ok := m.modulesByVariable[name]; ok {
-				if _, done := checked[module]; !done {
-					checked[module] = struct{}{}
+				if !checked.Contains(module) {
+					checked.Add(module)
 					if module.CouldHaveBeenConfigured(variables) {
 						return true
 					}
@@ -1622,8 +1637,8 @@ func (m *environmentModule) CouldHaveBeenConfigured(variables map[string]struct{
 	} else {
 		for name, module := range m.modulesByVariable {
 			if _, ok := variables[name]; ok {
-				if _, done := checked[module]; !done {
-					checked[module] = struct{}{}
+				if !checked.Contains(module) {
+					checked.Add(module)
 					if module.CouldHaveBeenConfigured(variables) {
 						return true
 					}

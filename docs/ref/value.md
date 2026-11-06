@@ -23,7 +23,8 @@ instances — comparison is still `Equal()`, never `==`.
 
 `Equal()` performs **deep value equality** per Dart's `operator==` — not
 pointer identity. The only identity-compared values are `SassFunction` and
-`SassMixin` (whose equality is their callable's identity). `SassMap` is
+`SassMixin` (whose equality is their callable's identity) and `SassModule`
+(module identity plus compile context). `SassMap` is
 backed by `linkedhashmap.LinkedHashMap[Value, Value]` with the `ValueEquals`
 comparator, so map keys work by value equality. A lazy hash cache avoids
 re-walking deep lists and maps on repeated lookup.
@@ -125,6 +126,20 @@ Opaque references carrying a `sasscallable.Callable` plus the compilation's
 `NewSassMixinWithCompileContext`). Equality is callable identity; the
 serializer prints the callable's name; cross-compilation use errors via
 `AssertCompileContext`. See `callable.md` and `compile-context.md`.
+
+### `SassModule`
+
+A first-class module reference (`value/module.go`). It wraps a
+`sassmodule.Module` through the `ModuleRef` interface (avoiding an import
+cycle), carries the compilation's `compileContext`, and compares by module
+identity plus that context. `String()` renders the inspect form
+`get-module("namespace")`; `ToCssString` errors because modules are not CSS
+values. Binary and unary operators raise Dart's `Undefined operation` errors.
+`meta.type-of()` reports `module`. Module equality follows Dart: built-in and
+environment modules compare by identity, while forwarded views compare by
+inner module + forwarding rule and shadowed views by inner module + visible
+key sequences; `Module.HashCode`/`linkedhashmap` provide the same custom
+equality used by the environment and CSS combination passes.
 
 ### Display vs CSS forms
 

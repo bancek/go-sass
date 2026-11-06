@@ -10,7 +10,10 @@ package sassmodule
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
+
+	"github.com/bancek/go-sass/linkedhashmap"
 
 	"github.com/bancek/go-sass/extend"
 	"github.com/bancek/go-sass/orderedmap"
@@ -124,8 +127,24 @@ func (v *ForwardedModuleView) ExtensionStore() extend.ExtensionStore {
 	return v.module.ExtensionStore()
 }
 func (v *ForwardedModuleView) CSS() (*value.CssStylesheet, error) { return v.module.CSS() }
-func (v *ForwardedModuleView) PreModuleComments() map[Module][]value.CssComment {
+func (v *ForwardedModuleView) PreModuleComments() *linkedhashmap.LinkedHashMap[Module, []value.CssComment] {
 	return v.module.PreModuleComments()
+}
+
+// Equal compares the inner module and the forwarding rule, matching Dart's
+// ForwardedModuleView.==.
+func (v *ForwardedModuleView) Equal(other value.ModuleRef) bool {
+	o, ok := other.(*ForwardedModuleView)
+	return ok && v.module.Equal(o.module) && v.rule == o.rule
+}
+
+// HashCode matches Dart's ForwardedModuleView.hashCode: inner hash ^ rule hash.
+func (v *ForwardedModuleView) HashCode() int {
+	h := v.module.HashCode()
+	if v.rule != nil {
+		h ^= int(reflect.ValueOf(v.rule).Pointer())
+	}
+	return h
 }
 func (v *ForwardedModuleView) TransitivelyContainsCss() bool {
 	return v.module.TransitivelyContainsCss()

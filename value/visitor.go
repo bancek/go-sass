@@ -47,4 +47,6 @@ type ValueVisitor[T any] interface {
 	VisitFunction(*SassFunction) (T, error)
 	// VisitMixin visits a first-class mixin value.
 	VisitMixin(*SassMixin) (T, error)
+	// VisitModule visits a first-class module value.
+	VisitModule(*SassModule) (T, error)
 }

@@ -39,7 +39,7 @@ var compilerVersion = "1.104.0"
 // checklist in ref/embedded.md can catch version skew.
 //
 // Matches Dart: const String.fromEnvironment("protocol-version")
-var protocolVersion = "3.2.0"
+var protocolVersion = "3.3.0"
 
 // IsolateDispatcher routes host packets to per-compilation isolates and
 // carries their replies back to the host.

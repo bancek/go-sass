@@ -10,6 +10,9 @@ package sassmodule
 
 import (
 	"fmt"
+	"slices"
+
+	"github.com/bancek/go-sass/linkedhashmap"
 
 	"github.com/bancek/go-sass/extend"
 	"github.com/bancek/go-sass/orderedmap"
@@ -119,9 +122,27 @@ func (v *ShadowedModuleView) Mixins() orderedmap.Map[string, sasscallable.Callab
 }
 func (v *ShadowedModuleView) ExtensionStore() extend.ExtensionStore { return v.module.ExtensionStore() }
 func (v *ShadowedModuleView) CSS() (*value.CssStylesheet, error)    { return v.module.CSS() }
-func (v *ShadowedModuleView) PreModuleComments() map[Module][]value.CssComment {
+func (v *ShadowedModuleView) PreModuleComments() *linkedhashmap.LinkedHashMap[Module, []value.CssComment] {
 	return v.module.PreModuleComments()
 }
+
+// Equal compares the inner module and the visible key sequences, matching
+// Dart's ShadowedModuleView.==.
+func (v *ShadowedModuleView) Equal(other value.ModuleRef) bool {
+	o, ok := other.(*ShadowedModuleView)
+	return ok &&
+		v.module.Equal(o.module) &&
+		equalKeySequences(v.variables, o.variables) &&
+		equalKeySequences(v.functions, o.functions) &&
+		equalKeySequences(v.mixins, o.mixins)
+}
+
+func equalKeySequences[V any](a, b orderedmap.Map[string, V]) bool {
+	return slices.Equal(slices.Collect(a.Keys()), slices.Collect(b.Keys()))
+}
+
+// HashCode matches Dart's ShadowedModuleView.hashCode: the inner module hash.
+func (v *ShadowedModuleView) HashCode() int { return v.module.HashCode() }
 func (v *ShadowedModuleView) TransitivelyContainsCss() bool {
 	return v.module.TransitivelyContainsCss()
 }

@@ -17,7 +17,7 @@ One package plus generated bindings plus the CLI entry:
 - `embedded/executable.go` + `sass/` — the `--embedded` entry that serves
   the protocol over stdio.
 
-It reports protocol version `3.2.0`, compiler/implementation version
+It reports protocol version `3.3.0`, compiler/implementation version
 `1.104.0`, and implementation name `"dart-sass"` — the values the
 `sass-embedded` host requires (`compilerVersion` / `protocolVersion` in
 `embedded/isolate_dispatcher.go`).
@@ -63,7 +63,7 @@ writer (one full packet per write).
 
 `protofier.go` converts values to and from proto form with a per-compilation
 context tracking argument-list ids (round-tripped by id) and opaque
-function/mixin ids. Colors map through the missing-channel bitmask;
+function/mixin/module ids. Colors map through the missing-channel bitmask;
 calculations validate names and arities. `proto_extensions.go` holds the
 hand-written helpers alongside the generated code.
 

@@ -78,8 +78,8 @@ and calls `v.Run(importer, stylesheet)` inside `withEvaluationContext`.
 - **Parameter verification** reports source spellings (`$foo_bar`, not
   `$foo-bar`) for missing/arity errors.
 - **Namespaced callables** resolve inside `addExceptionSpan(node span)`, so a
-  missing namespace reports Dart's `There is no module with the namespace
-"ns".` at the call-site span.
+  missing namespace reports Dart's `There is no module with namespace "ns".`
+  at the call-site span.
 - **Calculation arguments:** unary operations are rejected; unquoted strings
   pass the `is_calculation_safe` gate; `calc()` incompatibilities report the
   whole-operation span while multi-arg calls re-verify per-operand `MultiSpan`
@@ -93,9 +93,12 @@ and calls `v.Run(importer, stylesheet)` inside `withEvaluationContext`.
   `addExceptionSpan`; `@import` takes a separate dedicated path
   (`_visitDynamicImport` equivalent) with `combineCss` and the
   `ImportedCssVisitor`, bypassing module caching.
-- **Reentrant meta functions:** `meta.call` / `meta.apply` / `meta.load-css`
-  re-enter the evaluator (`evaluate_meta.go`); `load-css` maps
-  `$with: null` to an empty configuration, never the ambient one.
+- **Reentrant meta functions:** `meta.call` / `meta.apply` / `meta.load` /
+  `meta.load-css` / `meta.css` re-enter the evaluator
+  (`evaluate_meta.go`); `load` and `load-css` share the same module-loading
+  path and map `$with: null` to an empty configuration, never the ambient one.
+  `meta.get-module` and module-valued `$module` arguments carry a compile
+  context so references cannot leak across compilations.
 
 ## CssVisitor bubbling
 

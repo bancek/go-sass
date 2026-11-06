@@ -191,7 +191,7 @@ func TestMetaGlobalVariableExistsModule(t *testing.T) {
 func TestMetaGlobalVariableExistsMissingModule(t *testing.T) {
 	v := newMetaVisitor(t, nil)
 	_, err := callMeta(t, v, "global-variable-exists", metaQuoted("x"), metaQuoted("nope"))
-	metaAssertScriptErr(t, err, `There is no module with the namespace "nope".`, "")
+	metaAssertScriptErr(t, err, `There is no module with namespace "nope".`, "")
 }
 
 func TestMetaGlobalVariableExistsNameTypeError(t *testing.T) {
@@ -453,7 +453,14 @@ func TestMetaGetFunctionCss(t *testing.T) {
 
 func TestMetaGetFunctionCssAndModuleError(t *testing.T) {
 	v := newMetaVisitor(t, nil)
-	_, err := callMeta(t, v, "get-function", metaQuoted("foo"), value.SassTrue, metaQuoted("m"))
+	_, err := callMeta(t, v, "get-function", metaQuoted("foo"), value.SassTrue, metaQuoted("nope"))
+	metaAssertScriptErr(t, err, `There is no module with namespace "nope".`, "")
+}
+
+func TestMetaGetFunctionCssAndModuleValueError(t *testing.T) {
+	v := newMetaVisitor(t, nil)
+	module := value.NewSassModule(sassmodule.NewBuiltInModule("meta", nil, nil, nil))
+	_, err := callMeta(t, v, "get-function", metaQuoted("foo"), value.SassTrue, module)
 	metaAssertScriptErr(t, err, "$css and $module may not both be passed at once.", "")
 }
 
@@ -614,17 +621,17 @@ func TestRegisterMetaFunctions(t *testing.T) {
 	if !ok {
 		t.Fatal("sass:meta module not registered")
 	}
-	// 7 shared functions + 11 evaluator functions.
-	if mod.Functions().Len() != 18 {
-		t.Errorf("meta module functions = %d, want 18", mod.Functions().Len())
+	// 7 shared functions + 13 evaluator functions.
+	if mod.Functions().Len() != 20 {
+		t.Errorf("meta module functions = %d, want 20", mod.Functions().Len())
 	}
-	if mod.Mixins().Len() != 2 {
-		t.Errorf("meta module mixins = %d, want 2", mod.Mixins().Len())
+	if mod.Mixins().Len() != 3 {
+		t.Errorf("meta module mixins = %d, want 3", mod.Mixins().Len())
 	}
 	for _, name := range []string{
 		"global-variable-exists", "variable-exists", "function-exists",
 		"mixin-exists", "content-exists", "module-variables",
-		"module-functions", "module-mixins", "get-function", "get-mixin", "call",
+		"module-functions", "module-mixins", "get-function", "get-mixin", "get-module", "load", "call",
 	} {
 		if _, ok := mod.Functions().Get(name); !ok {
 			t.Errorf("meta module should contain %q", name)
@@ -635,12 +642,12 @@ func TestRegisterMetaFunctions(t *testing.T) {
 			t.Errorf("builtInFunctions should contain %q", name)
 		}
 	}
-	for _, name := range []string{"load-css", "apply"} {
+	for _, name := range []string{"css", "load-css", "apply"} {
 		if _, ok := mod.Mixins().Get(name); !ok {
 			t.Errorf("meta module should contain mixin %q", name)
 		}
 	}
-	if len(v.builtInFunctions) != 11 {
-		t.Errorf("builtInFunctions meta entries = %d, want 11", len(v.builtInFunctions))
+	if len(v.builtInFunctions) != 13 {
+		t.Errorf("builtInFunctions meta entries = %d, want 13", len(v.builtInFunctions))
 	}
 }

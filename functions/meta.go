@@ -128,6 +128,8 @@ func typeOfFunction() *BuiltInCallable {
 			typeName = "function"
 		case *value.SassMixin:
 			typeName = "mixin"
+		case *value.SassModule:
+			typeName = "module"
 		case *value.SassCalculation:
 			typeName = "calculation"
 		case *value.SassString:

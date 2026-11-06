@@ -9,6 +9,9 @@ package sassmodule
 // dart-source: lib/src/module.dart
 
 import (
+	"reflect"
+
+	"github.com/bancek/go-sass/linkedhashmap"
 	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/extend"
@@ -21,7 +24,8 @@ import (
 // Module is the interface for a Sass module: the compiled result of one
 // stylesheet, exposing its members, CSS, and extension store.
 //
-// Identity is by reference — modules compare by pointer, never by value.
+// Equality is Dart's Module equality: built-in and environment modules use
+// identity, while forwarded and shadowed views compare structurally.
 //
 // Matches Dart: Module
 type Module interface {
@@ -49,7 +53,11 @@ type Module interface {
 	CSS() (*value.CssStylesheet, error)
 	// PreModuleComments maps upstream modules to loud comments written in
 	// this module that must be emitted before the given module.
-	PreModuleComments() map[Module][]value.CssComment
+	PreModuleComments() *linkedhashmap.LinkedHashMap[Module, []value.CssComment]
+	// Equal reports whether other is the same Dart module.
+	Equal(other value.ModuleRef) bool
+	// HashCode returns a hash consistent with Equal.
+	HashCode() int
 	// TransitivelyContainsCss reports whether this module or any upstream
 	// module contains CSS.
 	TransitivelyContainsCss() bool
@@ -116,8 +124,16 @@ func NewBuiltInModule(name string, functions []sasscallable.Callable, mixins []s
 	}
 }
 
-func (m *BuiltInModule) URL() (string, error)                           { return m.url, nil }
-func (m *BuiltInModule) Upstream() []Module                             { return nil }
+func (m *BuiltInModule) URL() (string, error) { return m.url, nil }
+func (m *BuiltInModule) Upstream() []Module   { return nil }
+
+func (m *BuiltInModule) Equal(other value.ModuleRef) bool {
+	o, ok := other.(*BuiltInModule)
+	return ok && m == o
+}
+func (m *BuiltInModule) HashCode() int {
+	return int(reflect.ValueOf(m).Pointer())
+}
 func (m *BuiltInModule) Variables() orderedmap.Map[string, value.Value] { return m.variables }
 
 // Dart returns const {} (compile-time singleton) for the empty node map.
@@ -144,9 +160,11 @@ func (m *BuiltInModule) CSS() (*value.CssStylesheet, error) {
 	}
 	return value.NewCssStylesheetEmpty(parsed), nil
 }
-func (m *BuiltInModule) PreModuleComments() map[Module][]value.CssComment { return nil }
-func (m *BuiltInModule) TransitivelyContainsCss() bool                    { return false }
-func (m *BuiltInModule) TransitivelyContainsExtensions() bool             { return false }
+func (m *BuiltInModule) PreModuleComments() *linkedhashmap.LinkedHashMap[Module, []value.CssComment] {
+	return nil
+}
+func (m *BuiltInModule) TransitivelyContainsCss() bool        { return false }
+func (m *BuiltInModule) TransitivelyContainsExtensions() bool { return false }
 
 // SetVariable always fails: unknown names are undefined, and built-in
 // variables are immutable from Sass.
@@ -187,3 +205,11 @@ func (m *BuiltInModule) CouldHaveBeenConfigured(variables map[string]struct{}) b
 // CloneCss returns the module itself: with no CSS or extensions there is
 // nothing to copy.
 func (m *BuiltInModule) CloneCss() (Module, error) { return m, nil }
+
+// ModuleEquals compares two modules using Dart's Module equality semantics.
+func ModuleEquals(a, b Module) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(b)
+}

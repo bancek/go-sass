@@ -567,3 +567,40 @@ func TestShadowedModuleViewIsModule(t *testing.T) {
 		t.Fatal("ShadowedModuleView should satisfy Module interface")
 	}
 }
+
+func TestModuleStructuralEquality(t *testing.T) {
+	vars := orderedmap.New[string, value.Value]()
+	vars.Put("a", value.Null)
+	vars.Put("b", value.Null)
+	inner := NewBuiltInModule("test", nil, nil, vars)
+
+	rule := value.NewForwardRule(testURL(), testSpan(), nil, nil)
+	fwdA := NewForwardedModuleView(inner, rule)
+	fwdB := NewForwardedModuleView(inner, rule)
+	if !fwdA.Equal(fwdB) {
+		t.Fatal("forwarded views with the same inner module and rule should be equal")
+	}
+	if fwdA.HashCode() != fwdB.HashCode() {
+		t.Fatal("equal forwarded views must hash equally")
+	}
+	otherRule := value.NewForwardRule(testURL(), sasscommon.NewFileSpan(nil, 5, 10), nil, nil)
+	if fwdA.Equal(NewForwardedModuleView(inner, otherRule)) {
+		t.Fatal("forwarded views with different rules should not be equal")
+	}
+
+	blocked := map[string]struct{}{"b": {}}
+	shA := NewShadowedModuleView(inner, blocked, nil, nil)
+	shB := NewShadowedModuleView(inner, blocked, nil, nil)
+	if !shA.Equal(shB) {
+		t.Fatal("shadowed views with the same visible keys should be equal")
+	}
+	if shA.HashCode() != shB.HashCode() {
+		t.Fatal("equal shadowed views must hash equally")
+	}
+	if shA.Equal(NewShadowedModuleView(inner, map[string]struct{}{"a": {}}, nil, nil)) {
+		t.Fatal("shadowed views with different visible keys should not be equal")
+	}
+	if !ModuleEquals(inner, inner) || ModuleEquals(inner, NewBuiltInModule("other", nil, nil, nil)) {
+		t.Fatal("ModuleEquals identity check failed")
+	}
+}

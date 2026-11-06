@@ -1214,7 +1214,7 @@ func (v *EvaluateVisitor) registerCommentsForModule(module sassmodule.Module) {
 		return
 	}
 	if v.preModuleComments == nil {
-		v.preModuleComments = make(map[sassmodule.Module][]value.CssComment)
+		v.preModuleComments = linkedhashmap.New[sassmodule.Module, []value.CssComment](sassmodule.ModuleEquals)
 	}
 	var comments []value.CssComment
 	for _, child := range children {
@@ -1222,7 +1222,8 @@ func (v *EvaluateVisitor) registerCommentsForModule(module sassmodule.Module) {
 			comments = append(comments, c)
 		}
 	}
-	v.preModuleComments[module] = append(v.preModuleComments[module], comments...)
+	existing, _ := v.preModuleComments.Get(module)
+	v.preModuleComments.Put(module, append(existing, comments...))
 	v.root.ClearChildren()
 	v.endOfImports = 0
 	v.outOfOrderImports = nil

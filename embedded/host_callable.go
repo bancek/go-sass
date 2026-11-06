@@ -36,6 +36,7 @@ func NewHostCallable(
 	dispatcher *CompilationDispatcher,
 	fns *OpaqueRegistry,
 	mixins *OpaqueRegistry,
+	modules *OpaqueRegistry,
 	signature string,
 	id *uint32,
 ) (sasscallable.Callable, error) {
@@ -43,7 +44,7 @@ func NewHostCallable(
 	var err error
 	callable, err = functions.NewCallableFromSignature(signature,
 		func(ec *evalcontext.EvaluationContext, args []value.Value) (value.Value, error) {
-			protofier := NewProtofier(dispatcher, fns, mixins)
+			protofier := NewProtofier(dispatcher, fns, mixins, modules)
 			request := &OutboundMessage_FunctionCallRequest{}
 			for _, arg := range args {
 				protoVal, err := protofier.Protofy(arg)

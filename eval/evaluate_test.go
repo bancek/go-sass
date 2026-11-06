@@ -413,39 +413,6 @@ func TestStackTraceStringFormat(t *testing.T) {
 	}
 }
 
-func TestDefaultNamespaceUnderscorePrefix(t *testing.T) {
-	u, _ := sassurl.Parse("file:///home/user/_bootstrap.scss")
-	got := defaultNamespace(u)
-	// All underscores are replaced with hyphens, including the leading one.
-	if got != "-bootstrap" {
-		t.Errorf("defaultNamespace = %q, want %q", got, "-bootstrap")
-	}
-}
-
-func TestDefaultNamespaceUnderscoreToHyphen(t *testing.T) {
-	u, _ := sassurl.Parse("file:///home/user/my_utils.scss")
-	got := defaultNamespace(u)
-	if got != "my-utils" {
-		t.Errorf("defaultNamespace = %q, want %q", got, "my-utils")
-	}
-}
-
-func TestDefaultNamespaceMultipleExtensions(t *testing.T) {
-	u, _ := sassurl.Parse("file:///home/user/theme.css.scss")
-	got := defaultNamespace(u)
-	if got != "theme.css" {
-		t.Errorf("defaultNamespace = %q, want %q", got, "theme.css")
-	}
-}
-
-func TestDefaultNamespaceDecodesPercentEscapes(t *testing.T) {
-	u, _ := sassurl.Parse("file:///home/user/dep%20file.scss")
-	got := defaultNamespace(u)
-	if got != "dep file" {
-		t.Errorf("defaultNamespace = %q, want %q", got, "dep file")
-	}
-}
-
 // ===========================================================================
 // verifyParameterList() tests
 // ===========================================================================

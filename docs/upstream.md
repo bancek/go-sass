@@ -11,7 +11,7 @@ tooling). This file records the human-readable picture.
 | ------------------- | ---------------------------------------------------------------------- |
 | dart-sass commit    | `e01e268c6f6826ae309bf3105765d4c93024ebbc` (2026-09-02, `PORTED_FROM`) |
 | dart-sass version   | 1.104.0                                                                |
-| Embedded protocol   | 3.2.0                                                                  |
+| Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
 
 On every re-sync to current `origin/main` (procedure: `porting.md`),
