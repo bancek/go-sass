@@ -278,8 +278,8 @@ func (e *Environment) AddModule(module sassmodule.Module, nodeWithSpan sasscommo
 			if err != nil {
 				return err
 			}
-			secondary := map[sasscommon.FileSpan]string{}
-			secondary[span] = "original @use"
+			secondary := sasscommon.NewSecondarySpans()
+			secondary.Put(span, "original @use")
 			return &sasscommon.MultiSpanSassScriptException{
 				Message:        fmt.Sprintf("There's already a module with namespace \"%s\".", *namespace),
 				PrimaryLabel:   "new @use",
@@ -413,13 +413,13 @@ func assertNoConflicts[V any](
 			displayName = "$" + name
 		}
 
-		secondary := make(map[sasscommon.FileSpan]string)
+		secondary := sasscommon.NewSecondarySpans()
 		if node, ok := forwardedModules.Get(oldModule); ok {
 			span, err := node.Span()
 			if err != nil {
 				return err
 			}
-			secondary[span] = "original @forward"
+			secondary.Put(span, "original @forward")
 		}
 
 		return &sasscommon.MultiSpanSassScriptException{
@@ -1294,14 +1294,14 @@ func fromOneModule[T comparable](e *Environment, name string, typeName string, c
 		}
 
 		if val != zero {
-			spans := make(map[sasscommon.FileSpan]string)
+			spans := sasscommon.NewSecondarySpans()
 			for mod, node := range e.globalModules.Entries() {
 				if callback(mod) != zero {
 					s, err := node.Span()
 					if err != nil {
 						return zero, err
 					}
-					spans[s] = "includes " + typeName
+					spans.Put(s, "includes "+typeName)
 				}
 			}
 			return zero, &sasscommon.MultiSpanSassScriptException{

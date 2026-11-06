@@ -1843,7 +1843,7 @@ func TestErrorImpl(t *testing.T) {
 func TestMultiSpanErrorImpl(t *testing.T) {
 	p := newTestParser("x")
 	span := p.scanner.EmptySpan()
-	secondary := map[sasscommon.FileSpan]string{span: "secondary desc"}
+	secondary := sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: span, Label: "secondary desc"})
 	err := p.multiSpanError("main msg", span, "primary label", secondary)
 	if err == nil {
 		t.Error("multiSpanError: expected non-nil error")

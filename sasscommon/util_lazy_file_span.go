@@ -238,7 +238,7 @@ func (l *LazyFileSpan) Highlight(opts HighlightOptions) (string, error) {
 }
 
 // HighlightMultiple resolves the underlying span, then renders the multi-span highlight for the underlying span.
-func (l *LazyFileSpan) HighlightMultiple(primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (l *LazyFileSpan) HighlightMultiple(primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	s, err := l.Get()
 	if err != nil {
 		return "", err
@@ -247,7 +247,7 @@ func (l *LazyFileSpan) HighlightMultiple(primaryLabel string, secondarySpans map
 }
 
 // MessageMultiple resolves the underlying span, then renders the headed multi-span message for the underlying span.
-func (l *LazyFileSpan) MessageMultiple(message, primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (l *LazyFileSpan) MessageMultiple(message, primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	s, err := l.Get()
 	if err != nil {
 		return "", err

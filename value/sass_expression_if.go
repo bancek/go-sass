@@ -373,9 +373,7 @@ func (c *IfConditionSass) ToInterpolation(arbitrarySubstitution sasscommon.AstNo
 		Message:      "if() conditions with arbitrary substitutions may not contain sass() expressions.",
 		Span:         subSpan,
 		PrimaryLabel: "arbitrary substitution",
-		Secondary: map[sasscommon.FileSpan]string{
-			cSpan: "sass() expression",
-		},
+		Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: cSpan, Label: "sass() expression"}),
 	}
 }
 func (c *IfConditionSass) String() (string, error) {

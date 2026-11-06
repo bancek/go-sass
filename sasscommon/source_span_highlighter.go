@@ -126,7 +126,7 @@ func NewHighlighter(span FileSpan, opts HighlightOptions) (*highlighter, error) 
 // SecondaryColor override them; those overrides are ignored when color is
 // off, matching Dart. Nil secondary spans are skipped, a Go tolerance with
 // no Dart counterpart (Dart map keys cannot be null).
-func NewHighlighterMultiple(primarySpan FileSpan, primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (*highlighter, error) {
+func NewHighlighterMultiple(primarySpan FileSpan, primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (*highlighter, error) {
 	var primaryColor, secondaryColor string
 	if b, ok := opts.Color.(bool); ok && b {
 		primaryColor = ansiRed
@@ -144,7 +144,7 @@ func NewHighlighterMultiple(primarySpan FileSpan, primaryLabel string, secondary
 		return nil, err
 	}
 	highlights := []_highlight{{span: primaryNormalized, label: primaryLabel, isPrimary: true}}
-	for span, label := range secondarySpans {
+	for span, label := range secondarySpans.Entries() {
 		if span == nil {
 			continue
 		}

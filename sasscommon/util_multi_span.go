@@ -9,8 +9,6 @@ package sasscommon
 // dart-source: lib/src/util/multi_span.dart
 
 import (
-	"maps"
-
 	"github.com/bancek/go-sass/sassurl"
 )
 
@@ -30,7 +28,7 @@ type MultiSpan struct {
 	// PrimaryLabel labels Primary to distinguish it from SecondarySpans.
 	PrimaryLabel string
 	// SecondarySpans maps each extra span to the label shown beside it.
-	SecondarySpans map[FileSpan]string
+	SecondarySpans *SecondarySpans
 }
 
 // NewMultiSpan wraps primary with primaryLabel and a copy of secondarySpans,
@@ -38,10 +36,8 @@ type MultiSpan struct {
 // defensive copy mirrors Dart's unmodifiable-map construction.
 //
 // Matches Dart: MultiSpan constructor
-func NewMultiSpan(primary FileSpan, primaryLabel string, secondarySpans map[FileSpan]string) *MultiSpan {
-	ss := make(map[FileSpan]string, len(secondarySpans))
-	maps.Copy(ss, secondarySpans)
-	return &MultiSpan{Primary: primary, PrimaryLabel: primaryLabel, SecondarySpans: ss}
+func NewMultiSpan(primary FileSpan, primaryLabel string, secondarySpans *SecondarySpans) *MultiSpan {
+	return &MultiSpan{Primary: primary, PrimaryLabel: primaryLabel, SecondarySpans: secondarySpans.Clone()}
 }
 
 // SpanStart returns the primary span's start location; ordering and
@@ -215,7 +211,7 @@ func (m *MultiSpan) Message(message string, color any) (string, error) {
 // safe to reuse.
 //
 // Matches Dart: MultiSpan.highlightMultiple(...)
-func (m *MultiSpan) HighlightMultiple(newLabel string, additionalSpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (m *MultiSpan) HighlightMultiple(newLabel string, additionalSpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	merged := mergeSecondarySpans(m.SecondarySpans, additionalSpans)
 	return m.Primary.HighlightMultiple(newLabel, merged, opts)
 }
@@ -225,7 +221,7 @@ func (m *MultiSpan) HighlightMultiple(newLabel string, additionalSpans map[FileS
 // the "line/column/message" header prepended.
 //
 // Matches Dart: MultiSpan.messageMultiple(...)
-func (m *MultiSpan) MessageMultiple(message, newLabel string, additionalSpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (m *MultiSpan) MessageMultiple(message, newLabel string, additionalSpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	merged := mergeSecondarySpans(m.SecondarySpans, additionalSpans)
 	return m.Primary.MessageMultiple(message, newLabel, merged, opts)
 }
@@ -237,13 +233,15 @@ func (m *MultiSpan) withPrimary(newPrimary FileSpan) *MultiSpan {
 	return &MultiSpan{Primary: newPrimary, PrimaryLabel: m.PrimaryLabel, SecondarySpans: m.SecondarySpans}
 }
 
-// mergeSecondarySpans combines two secondary-span maps into a fresh map,
-// with b's labels winning on key collisions. Every highlight/message merge
-// goes through here so no caller can mutate a stored map in place.
-func mergeSecondarySpans(a, b map[FileSpan]string) map[FileSpan]string {
-	result := make(map[FileSpan]string, len(a)+len(b))
-	maps.Copy(result, a)
-	maps.Copy(result, b)
+// mergeSecondarySpans combines two secondary-span collections into a fresh
+// one, with b's labels winning on key collisions. Every highlight/message
+// merge goes through here so no caller can mutate a stored collection in
+// place.
+func mergeSecondarySpans(a, b *SecondarySpans) *SecondarySpans {
+	result := a.Clone()
+	for span, label := range b.Entries() {
+		result.Put(span, label)
+	}
 	return result
 }
 
@@ -254,7 +252,7 @@ func mergeSecondarySpans(a, b map[FileSpan]string) map[FileSpan]string {
 type multiSpanFileSpan struct {
 	FileSpan
 	primaryLabel   string
-	secondarySpans map[FileSpan]string
+	secondarySpans *SecondarySpans
 }
 
 // NewMultiSpanFileSpan wraps primary so its Highlight and Message methods
@@ -264,7 +262,7 @@ type multiSpanFileSpan struct {
 // advise.
 //
 // Matches Dart: MultiSpan constructor (as a FileSpan implementation)
-func NewMultiSpanFileSpan(primary FileSpan, primaryLabel string, secondarySpans map[FileSpan]string) FileSpan {
+func NewMultiSpanFileSpan(primary FileSpan, primaryLabel string, secondarySpans *SecondarySpans) FileSpan {
 	return &multiSpanFileSpan{
 		FileSpan:       primary,
 		primaryLabel:   primaryLabel,

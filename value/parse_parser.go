@@ -1071,7 +1071,7 @@ func (p *Parser) error(msg string, span sasscommon.FileSpan, trace error) error 
 // secondary spans.
 //
 // It ports the Dart parser's MultiSpanSassFormatException throw.
-func (p *Parser) multiSpanError(msg string, span sasscommon.FileSpan, primaryLabel string, secondary map[sasscommon.FileSpan]string) error {
+func (p *Parser) multiSpanError(msg string, span sasscommon.FileSpan, primaryLabel string, secondary *sasscommon.SecondarySpans) error {
 	return &sasscommon.MultiSpanSassFormatException{
 		Message:      msg,
 		Span:         span,
@@ -1151,13 +1151,13 @@ func (p *Parser) wrapSpanFormatException(callback func() error) error {
 			if err != nil {
 				return err
 			}
-			adjustedSecondary := make(map[sasscommon.FileSpan]string, len(secondarySpans))
-			for s, desc := range secondarySpans {
+			adjustedSecondary := sasscommon.NewSecondarySpans()
+			for s, desc := range secondarySpans.Entries() {
 				adjusted, err := p._adjustExceptionSpan(s)
 				if err != nil {
 					return err
 				}
-				adjustedSecondary[adjusted] = desc
+				adjustedSecondary.Put(adjusted, desc)
 			}
 			secondarySpans = adjustedSecondary
 		}

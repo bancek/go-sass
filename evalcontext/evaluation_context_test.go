@@ -614,9 +614,9 @@ func TestWarnDeprecationMultiSpanError(t *testing.T) {
 	defaultSpan := newTestSpanWithText("default")
 	ec.SetDefaultWarnSpan(defaultSpan)
 
-	secondary := map[sasscommon.FileSpan]string{}
+	secondary := sasscommon.NewSecondarySpans()
 	secondarySpan := newTestSpanWithText("secondary")
-	secondary[secondarySpan] = "secondary label"
+	secondary.Put(secondarySpan, "secondary label")
 	logger.lastWarnDepErr = &sasscommon.MultiSpanSassScriptException{
 		Message:        "conflict error",
 		PrimaryLabel:   "primary label",

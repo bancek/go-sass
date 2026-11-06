@@ -631,9 +631,7 @@ func TestSSWCMessageMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	secondary := map[FileSpan]string{
-		NewSimpleFileSpan(fs, 4, 7): "three",
-	}
+	secondary := NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs, 4, 7), Label: "three"})
 	out, err := ssc.MessageMultiple("oh no", "one", secondary, HighlightOptions{Glyphs: termglyph.AsciiGlyphs})
 	if err != nil {
 		t.Fatal(err)
@@ -658,9 +656,7 @@ func TestSSWCHighlightMultiple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	secondary := map[FileSpan]string{
-		NewSimpleFileSpan(fs, 8, 11): "baz",
-	}
+	secondary := NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs, 8, 11), Label: "baz"})
 	out, err := ssc.HighlightMultiple("primary", secondary, HighlightOptions{Glyphs: termglyph.AsciiGlyphs})
 	if err != nil {
 		t.Fatal(err)

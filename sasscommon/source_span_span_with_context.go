@@ -520,7 +520,7 @@ func (s SourceSpanWithContext) Highlight(opts HighlightOptions) (string, error) 
 // travels on opts (Dart's color/primaryColor/secondaryColor arguments);
 // nil secondary spans are skipped, a Go tolerance with no Dart counterpart
 // (Dart map keys cannot be null).
-func (s SourceSpanWithContext) HighlightMultiple(primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (s SourceSpanWithContext) HighlightMultiple(primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	h, err := NewHighlighterMultiple(s, primaryLabel, secondarySpans, opts)
 	if err != nil {
 		return "", err
@@ -536,7 +536,7 @@ func (s SourceSpanWithContext) HighlightMultiple(primaryLabel string, secondaryS
 // Matches Dart: SourceSpanExtension.messageMultiple (span.dart): the same
 // "line X, column Y[ of url]: message" header as Message, followed by the
 // multi-span highlight.
-func (s SourceSpanWithContext) MessageMultiple(message, primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (s SourceSpanWithContext) MessageMultiple(message, primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	var buf strings.Builder
 	buf.WriteString(fmt.Sprintf("line %d, column %d", s.start.Line+1, s.start.Column+1))
 	if s.url != nil {

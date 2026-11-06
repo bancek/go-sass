@@ -505,7 +505,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 						}
 						return nil, p.multiSpanError("Unexpected text after end of comment",
 							errorSpan, "extra text",
-							map[sasscommon.FileSpan]string{span: "comment"})
+							sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: span, Label: "comment"}))
 					}
 					comment, commentErr := buffer.Interpolation(span)
 					if commentErr != nil {

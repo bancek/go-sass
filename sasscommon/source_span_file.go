@@ -76,11 +76,11 @@ type FileSpan interface {
 
 	// HighlightMultiple highlights this span as the primary span along with
 	// secondarySpans. Matches Dart's SourceSpanExtension.highlightMultiple.
-	HighlightMultiple(primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error)
+	HighlightMultiple(primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error)
 
 	// MessageMultiple is like HighlightMultiple but prepends a message header.
 	// Matches Dart's SourceSpanExtension.messageMultiple.
-	MessageMultiple(message, primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error)
+	MessageMultiple(message, primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error)
 }
 
 // SimpleFileSpan is the concrete FileSpan, porting Dart's private _FileSpan:
@@ -361,7 +361,7 @@ func (s SimpleFileSpan) Highlight(opts HighlightOptions) (string, error) {
 // counterpart to Highlight; MessageMultiple adds the header on top.
 //
 // Matches Dart: SourceSpanExtension.highlightMultiple
-func (s SimpleFileSpan) HighlightMultiple(primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (s SimpleFileSpan) HighlightMultiple(primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	h, err := NewHighlighterMultiple(s, primaryLabel, secondarySpans, opts)
 	if err != nil {
 		return "", err
@@ -374,7 +374,7 @@ func (s SimpleFileSpan) HighlightMultiple(primaryLabel string, secondarySpans ma
 // with the same header Message prepends.
 //
 // Matches Dart: SourceSpanExtension.messageMultiple
-func (s SimpleFileSpan) MessageMultiple(message, primaryLabel string, secondarySpans map[FileSpan]string, opts HighlightOptions) (string, error) {
+func (s SimpleFileSpan) MessageMultiple(message, primaryLabel string, secondarySpans *SecondarySpans, opts HighlightOptions) (string, error) {
 	var buf strings.Builder
 	startLoc, err := s.StartLocation()
 	if err != nil {

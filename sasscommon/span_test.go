@@ -506,21 +506,21 @@ func TestSimpleFileSpanAsMapKey(t *testing.T) {
 	a2 := NewSimpleFileSpan(fs, 0, 5)
 	b := NewSimpleFileSpan(fs, 1, 6)
 
-	m := map[FileSpan]string{a: "first"}
-	m[a2] = "still-first"
-	m[b] = "second"
+	m := NewSecondarySpans(SecondarySpan{Span: a, Label: "first"})
+	m.Put(a2, "still-first")
+	m.Put(b, "second")
 
-	if m[a] != "still-first" {
-		t.Errorf("key a = %q, want %q", m[a], "still-first")
+	if got, _ := m.Get(a); got != "still-first" {
+		t.Errorf("key a = %q, want %q", got, "still-first")
 	}
-	if m[a2] != "still-first" {
-		t.Errorf("key a2 = %q, want %q", m[a2], "still-first")
+	if got, _ := m.Get(a2); got != "still-first" {
+		t.Errorf("key a2 = %q, want %q", got, "still-first")
 	}
-	if m[b] != "second" {
-		t.Errorf("key b = %q, want %q", m[b], "second")
+	if got, _ := m.Get(b); got != "second" {
+		t.Errorf("key b = %q, want %q", got, "second")
 	}
-	if len(m) != 2 {
-		t.Errorf("map size = %d, want 2", len(m))
+	if m.Len() != 2 {
+		t.Errorf("secondary span count = %d, want 2", m.Len())
 	}
 }
 
@@ -530,9 +530,9 @@ func TestSimpleFileSpanMapKeyDifferentFiles(t *testing.T) {
 	a := NewSimpleFileSpan(fs1, 0, 5)
 	b := NewSimpleFileSpan(fs2, 0, 5)
 	// Different *FileSource pointers → different struct values → different map keys
-	m := map[FileSpan]string{a: "first"}
-	if _, exists := m[b]; exists {
-		t.Error("different *FileSource pointer should NOT match as map key")
+	m := NewSecondarySpans(SecondarySpan{Span: a, Label: "first"})
+	if _, exists := m.Get(b); exists {
+		t.Error("different *FileSource pointer should NOT match as a key")
 	}
 }
 
@@ -542,9 +542,9 @@ func TestLazyAndSimpleSpanAsSeparateMapKeys(t *testing.T) {
 	lazy := NewLazyFileSpan(func() (FileSpan, error) {
 		return NewSimpleFileSpan(fs, 0, 3), nil
 	})
-	m := map[FileSpan]string{simple: "simple", lazy: "lazy"}
-	if len(m) != 2 {
-		t.Errorf("LazyFileSpan and SimpleFileSpan should be separate keys, got %d", len(m))
+	m := NewSecondarySpans(SecondarySpan{Span: simple, Label: "simple"}, SecondarySpan{Span: lazy, Label: "lazy"})
+	if m.Len() != 2 {
+		t.Errorf("LazyFileSpan and SimpleFileSpan should be separate keys, got %d", m.Len())
 	}
 }
 
@@ -713,9 +713,7 @@ func TestMultiSpanDelegatesSpanText(t *testing.T) {
 func TestMultiSpanExpandPreservesMetadata(t *testing.T) {
 	fs := testFileSource("abcdefghij")
 	primary := NewSimpleFileSpan(fs, 3, 8)
-	secondary := map[FileSpan]string{
-		NewSimpleFileSpan(fs, 0, 1): "note",
-	}
+	secondary := NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs, 0, 1), Label: "note"})
 	ms := NewMultiSpan(primary, "primary-label", secondary)
 	other := NewSimpleFileSpan(fs, 0, 10)
 	expanded, err := ms.Expand(other)
@@ -730,7 +728,7 @@ func TestMultiSpanExpandPreservesMetadata(t *testing.T) {
 	if expanded.PrimaryLabel != "primary-label" {
 		t.Errorf("PrimaryLabel = %q", expanded.PrimaryLabel)
 	}
-	if len(expanded.SecondarySpans) != 1 {
-		t.Errorf("lost secondary spans: got %d", len(expanded.SecondarySpans))
+	if expanded.SecondarySpans.Len() != 1 {
+		t.Errorf("lost secondary spans: got %d", expanded.SecondarySpans.Len())
 	}
 }

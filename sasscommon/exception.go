@@ -409,7 +409,7 @@ type MultiSpanSassFormatException struct {
 	// PrimaryLabel labels the primary span to distinguish it from Secondary.
 	PrimaryLabel string
 	// Secondary maps each extra span to the label shown beside it.
-	Secondary map[FileSpan]string
+	Secondary *SecondarySpans
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
@@ -498,7 +498,7 @@ type MultiSpanSassException struct {
 	// PrimaryLabel labels the primary span to distinguish it from Secondary.
 	PrimaryLabel string
 	// Secondary maps each extra span to the label shown beside it.
-	Secondary map[FileSpan]string
+	Secondary *SecondarySpans
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
@@ -548,11 +548,8 @@ func (e *MultiSpanSassException) Unwrap() error { return e.Cause }
 //
 // Matches Dart: MultiSpanSassException.withAdditionalSpan
 func (e *MultiSpanSassException) WithAdditionalSpan(span FileSpan, label string) *MultiSpanSassException {
-	secondary := make(map[FileSpan]string, len(e.Secondary)+1)
-	for k, v := range e.Secondary {
-		secondary[k] = v
-	}
-	secondary[span] = label
+	secondary := e.Secondary.Clone()
+	secondary.Put(span, label)
 	return &MultiSpanSassException{
 		Message:      e.Message,
 		Span:         e.Span,
@@ -610,7 +607,7 @@ func (e *SassException) WithAdditionalSpan(span FileSpan, label string) *MultiSp
 		Message:      e.Message,
 		Span:         e.Span,
 		PrimaryLabel: "",
-		Secondary:    map[FileSpan]string{span: label},
+		Secondary:    NewSecondarySpans(SecondarySpan{Span: span, Label: label}),
 		Cause:        e.Cause,
 		LoadedUrls:   e.LoadedUrls,
 	}
@@ -747,7 +744,7 @@ func (e *SassRuntimeException) WithAdditionalSpan(span FileSpan, label string) *
 		Message:        e.Message,
 		Span:           e.Span,
 		PrimaryLabel:   "",
-		SecondarySpans: map[FileSpan]string{span: label},
+		SecondarySpans: NewSecondarySpans(SecondarySpan{Span: span, Label: label}),
 		Trace:          e.Trace,
 		Cause:          e.Cause,
 		LoadedUrls:     e.LoadedUrls,
@@ -785,7 +782,7 @@ type MultiSpanSassRuntimeException struct {
 	// PrimaryLabel labels the primary span to distinguish it from SecondarySpans.
 	PrimaryLabel string
 	// SecondarySpans maps each extra span to the label shown beside it.
-	SecondarySpans map[FileSpan]string
+	SecondarySpans *SecondarySpans
 	// Trace is the Sass call stack at the throw point.
 	Trace *Trace
 	// Cause chains the underlying error, if any.
@@ -928,7 +925,7 @@ type MultiSpanSassScriptException struct {
 	// SecondarySpans.
 	PrimaryLabel string
 	// SecondarySpans maps each extra span to the label shown beside it.
-	SecondarySpans map[FileSpan]string
+	SecondarySpans *SecondarySpans
 }
 
 // Error returns the plain message; span rendering happens once the boundary

@@ -33,7 +33,7 @@ type MultiSourceSpanFormatError struct {
 	// Source holds the original source text the spans were sliced from.
 	Source string
 	// Secondary maps secondary spans to labels.
-	Secondary map[FileSpan]string
+	Secondary *SecondarySpans
 }
 
 // Error renders "location: message" for the primary span's start; secondary

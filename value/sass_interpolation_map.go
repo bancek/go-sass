@@ -231,7 +231,7 @@ func (m *InterpolationMap) MapException(ssfErr *sasscommon.SourceSpanFormatExcep
 		Span:         sourceFS,
 		PrimaryLabel: "",
 		Source:       ssfErr.Source,
-		Secondary:    map[sasscommon.FileSpan]string{target: "error in interpolated output"},
+		Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: target, Label: "error in interpolated output"}),
 	}
 }
 

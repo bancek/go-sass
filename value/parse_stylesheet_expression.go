@@ -132,7 +132,7 @@ func (p *StylesheetParser) argumentInvocation(opts argumentInvocationOpts) (*Arg
 					Span: sasscommon.NewMultiSpanFileSpan(
 						deprecSpan,
 						"named argument",
-						map[sasscommon.FileSpan]string{restSpan: "rest argument"},
+						sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: restSpan, Label: "rest argument"}),
 					),
 				})
 			}
@@ -183,7 +183,7 @@ func (p *StylesheetParser) argumentInvocation(opts argumentInvocationOpts) (*Arg
 					Span: sasscommon.NewMultiSpanFileSpan(
 						exprSpan,
 						"positional argument",
-						map[sasscommon.FileSpan]string{restSpan: "rest argument"},
+						sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: restSpan, Label: "rest argument"}),
 					),
 				})
 			}

@@ -164,7 +164,7 @@ func (p *ParameterList) Verify(positional int, names map[string]struct{}) error 
 			return &sasscommon.MultiSpanSassScriptException{
 				Message:        fmt.Sprintf("Missing argument %s.", origName),
 				PrimaryLabel:   "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{p.SpanWithName(): "declaration"},
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: p.SpanWithName(), Label: "declaration"}),
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func (p *ParameterList) Verify(positional int, names map[string]struct{}) error 
 		return &sasscommon.MultiSpanSassScriptException{
 			Message:        fmt.Sprintf("Only %d %s%s allowed, but %d %s passed.", len(p.Parameters), posWord, util.Pluralize("argument", len(p.Parameters), nil), positional, util.Pluralize("was", positional, new("were"))),
 			PrimaryLabel:   "invocation",
-			SecondarySpans: map[sasscommon.FileSpan]string{p.SpanWithName(): "declaration"},
+			SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: p.SpanWithName(), Label: "declaration"}),
 		}
 	}
 
@@ -205,7 +205,7 @@ func (p *ParameterList) Verify(positional int, names map[string]struct{}) error 
 		return &sasscommon.MultiSpanSassScriptException{
 			Message:        fmt.Sprintf("No %s named %s.", util.Pluralize("parameter", len(unknownNames), nil), toSentence(nameList, "or")),
 			PrimaryLabel:   "invocation",
-			SecondarySpans: map[sasscommon.FileSpan]string{p.SpanWithName(): "declaration"},
+			SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: p.SpanWithName(), Label: "declaration"}),
 		}
 	}
 

@@ -170,23 +170,23 @@ func (v *EvaluateVisitor) evaluateModule(sheet *value.Stylesheet, config *config
 					message = "This module was already loaded, so it can't be configured using \"with\"."
 				}
 
-				secondarySpans := make(map[sasscommon.FileSpan]string)
+				secondarySpans := sasscommon.NewSecondarySpans()
 				if prevNode, ok := v.moduleNodes[urlStr]; ok {
 					prevSpan, spanErr := prevNode.Span()
 					if spanErr == nil {
-						secondarySpans[prevSpan] = "original load"
+						secondarySpans.Put(prevSpan, "original load")
 					}
 				}
 				if config == nil {
 					if currentConfiguration.NodeWithSpan != nil {
 						confSpan, spanErr := currentConfiguration.NodeWithSpan.Span()
 						if spanErr == nil {
-							secondarySpans[confSpan] = "configuration"
+							secondarySpans.Put(confSpan, "configuration")
 						}
 					}
 				}
 
-				if len(secondarySpans) > 0 && nodeWithSpan != nil {
+				if secondarySpans.Len() > 0 && nodeWithSpan != nil {
 					nwsSpan, err := nodeWithSpan.Span()
 					if err != nil {
 						return nil, err
@@ -799,7 +799,7 @@ func (v *EvaluateVisitor) loadModule(url *sassurl.URL, stackFrame string, nodeWi
 									Message:        message,
 									Span:           nSpan,
 									PrimaryLabel:   "new load",
-									SecondarySpans: map[sasscommon.FileSpan]string{prevSpan: "original load"},
+									SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: prevSpan, Label: "original load"}),
 									// Build the trace without a span: the new-load node is
 									// already the innermost stack frame, so passing nSpan
 									// would duplicate it.
@@ -1354,13 +1354,11 @@ func (v *EvaluateVisitor) visitDynamicImport(imp *value.DynamicImport) error {
 					}
 					// Label the new load against the original load span.
 					return struct{}{}, &sasscommon.MultiSpanSassRuntimeException{
-						Message:      "This file is already being loaded.",
-						Span:         impSpan,
-						PrimaryLabel: "new load",
-						SecondarySpans: map[sasscommon.FileSpan]string{
-							prevSpan: "original load",
-						},
-						Trace: v.stackTrace(impSpan),
+						Message:        "This file is already being loaded.",
+						Span:           impSpan,
+						PrimaryLabel:   "new load",
+						SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: prevSpan, Label: "original load"}),
+						Trace:          v.stackTrace(impSpan),
 					}
 				}
 				impSpan, err := imp.Span()
@@ -1819,7 +1817,7 @@ func (v *EvaluateVisitor) runBuiltInCallable(callable *functions.BuiltInCallable
 			Message:        fmt.Sprintf("No parameter named $%s.", name),
 			Span:           sp,
 			PrimaryLabel:   "invocation",
-			SecondarySpans: map[sasscommon.FileSpan]string{},
+			SecondarySpans: sasscommon.NewSecondarySpans(),
 			Trace:          v.stackTrace(sp),
 		}
 	}
@@ -1869,13 +1867,11 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 				return err
 			}
 			return &sasscommon.MultiSpanSassRuntimeException{
-				Message:      "Mixin doesn't accept a content block.",
-				Span:         nwsSpan,
-				PrimaryLabel: "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					overload.Params.SpanWithName(): "declaration",
-				},
-				Trace: v.stackTrace(nwsSpan),
+				Message:        "Mixin doesn't accept a content block.",
+				Span:           nwsSpan,
+				PrimaryLabel:   "invocation",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: overload.Params.SpanWithName(), Label: "declaration"}),
+				Trace:          v.stackTrace(nwsSpan),
 			}
 		}
 		oldContent := v.env.Content()
@@ -1901,13 +1897,11 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 			}
 			// Point at the invocation with the declaration as context.
 			return &sasscommon.MultiSpanSassRuntimeException{
-				Message:      "Mixin doesn't accept a content block.",
-				Span:         nwsSpan,
-				PrimaryLabel: "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					mr.Parameters().SpanWithName(): "declaration",
-				},
-				Trace: v.stackTrace(nwsSpan),
+				Message:        "Mixin doesn't accept a content block.",
+				Span:           nwsSpan,
+				PrimaryLabel:   "invocation",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: mr.Parameters().SpanWithName(), Label: "declaration"}),
+				Trace:          v.stackTrace(nwsSpan),
 			}
 		}
 		_, err := v.runUserDefinedCallable(c, arguments, nodeWithSpanWithoutContent, func() (value.Value, error) {
@@ -2393,13 +2387,13 @@ have children other than style rules.`, trimmed)
 			}
 			msg += "\nThis will be an error in Dart Sass 2.0.0.\n\nMore info: https://sass-lang.com/d/bogus-combinators"
 			children := rule.Children()
-			var secondarySpans map[sasscommon.FileSpan]string
+			secondarySpans := sasscommon.NewSecondarySpans()
 			if len(children) > 0 {
 				childSpan, err := children[0].Span()
 				if err != nil {
 					return err
 				}
-				secondarySpans = map[sasscommon.FileSpan]string{childSpan: "this is not a style rule"}
+				secondarySpans = sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: childSpan, Label: "this is not a style rule"})
 			}
 			trimmedSpan3, err := compSpan.TrimRight()
 			if err != nil {
@@ -3124,7 +3118,7 @@ func (v *EvaluateVisitor) VisitExtendRule(stmt *value.ExtendRule) (value.Value, 
 		if err != nil {
 			return nil, err
 		}
-		if err := v.warn(msg, sasscommon.NewMultiSpanFileSpan(trimmed, "invalid selector", map[sasscommon.FileSpan]string{stmtSpan9: "@extend rule"}), deprecation.BogusCombinators); err != nil {
+		if err := v.warn(msg, sasscommon.NewMultiSpanFileSpan(trimmed, "invalid selector", sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: stmtSpan9, Label: "@extend rule"})), deprecation.BogusCombinators); err != nil {
 			return nil, err
 		}
 	}

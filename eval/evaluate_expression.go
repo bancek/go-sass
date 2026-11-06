@@ -193,7 +193,7 @@ func (v *EvaluateVisitor) VisitMapExpression(expr *value.MapExpression) (value.V
 				Message:        "Duplicate key.",
 				Span:           sp,
 				PrimaryLabel:   "second key",
-				SecondarySpans: map[sasscommon.FileSpan]string{oldSp: "first key"},
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: oldSp, Label: "first key"}),
 				Trace:          v.stackTrace(sp),
 			}
 		}
@@ -1223,7 +1223,7 @@ func (v *EvaluateVisitor) verifyCompatibleNumbersExpressions(args []any, nodesWi
 				Message:        fmt.Sprintf("%s and %s are incompatible.", str1, str2),
 				Span:           spI,
 				PrimaryLabel:   str1,
-				SecondarySpans: map[sasscommon.FileSpan]string{spJ: str2},
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: spJ, Label: str2}),
 				Trace:          v.stackTrace(spI),
 			}
 		}
@@ -1745,14 +1745,12 @@ func (v *EvaluateVisitor) emitPlainCssCallable(c *functions.PlainCssCallable, no
 				return nil, err
 			}
 			return nil, &sasscommon.MultiSpanSassRuntimeException{
-				Message:      sre.Message,
-				Span:         sre.Span,
-				PrimaryLabel: "value",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					fnSpan: "unknown function treated as plain CSS",
-				},
-				Trace: sre.Trace,
-				Cause: serializeErr,
+				Message:        sre.Message,
+				Span:           sre.Span,
+				PrimaryLabel:   "value",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: fnSpan, Label: "unknown function treated as plain CSS"}),
+				Trace:          sre.Trace,
+				Cause:          serializeErr,
 			}
 		}
 		return nil, serializeErr

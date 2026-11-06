@@ -877,10 +877,10 @@ func addExceptionSpan[T any](v *EvaluateVisitor, nodeWithSpan sasscommon.AstNode
 		// Preserve the multi-span shape: the error keeps its secondary spans
 		// and primary label, gaining the node's span and the current trace.
 		// Dart: error.withSpan(nodeWithSpan.span).withTrace(...).
-		secondarySpans := make(map[sasscommon.FileSpan]string)
-		for span, label := range msse.SecondarySpans {
+		secondarySpans := sasscommon.NewSecondarySpans()
+		for span, label := range msse.SecondarySpans.Entries() {
 			if span != nil {
-				secondarySpans[span] = label
+				secondarySpans.Put(span, label)
 			}
 		}
 		return result, sasscommon.ThrowWithTrace(
@@ -1058,11 +1058,9 @@ func verifyParameterList(positional int, names map[string]bool, params *value.Pa
 			namedUsed++
 		} else if param.DefaultValue == nil {
 			return &sasscommon.MultiSpanSassScriptException{
-				Message:      fmt.Sprintf("Missing argument $%s.", param.Name()),
-				PrimaryLabel: "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					paramsSpan: "declaration",
-				},
+				Message:        fmt.Sprintf("Missing argument $%s.", param.Name()),
+				PrimaryLabel:   "invocation",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
 			}
 		}
 	}
@@ -1085,11 +1083,9 @@ func verifyParameterList(positional int, names map[string]bool, params *value.Pa
 			positionalPrefix = "positional "
 		}
 		return &sasscommon.MultiSpanSassScriptException{
-			Message:      fmt.Sprintf("Only %d %s%s allowed, but %d %s passed.", len(params.Parameters), positionalPrefix, plural, positional, wasPlural),
-			PrimaryLabel: "invocation",
-			SecondarySpans: map[sasscommon.FileSpan]string{
-				paramsSpan: "declaration",
-			},
+			Message:        fmt.Sprintf("Only %d %s%s allowed, but %d %s passed.", len(params.Parameters), positionalPrefix, plural, positional, wasPlural),
+			PrimaryLabel:   "invocation",
+			SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
 		}
 	}
 
@@ -1127,11 +1123,9 @@ func verifyParameterList(positional int, names map[string]bool, params *value.Pa
 			}
 
 			return &sasscommon.MultiSpanSassScriptException{
-				Message:      fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
-				PrimaryLabel: "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					paramsSpan: "declaration",
-				},
+				Message:        fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
+				PrimaryLabel:   "invocation",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
 			}
 		}
 	}
@@ -1284,11 +1278,9 @@ func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, nodeWithSpa
 			v.env.SetLocalVariable(param.Name(), cleaned, node)
 		} else {
 			return nil, &sasscommon.MultiSpanSassScriptException{
-				Message:      fmt.Sprintf("Missing argument $%s.", param.Name()),
-				PrimaryLabel: "invocation",
-				SecondarySpans: map[sasscommon.FileSpan]string{
-					paramsSpan: "declaration",
-				},
+				Message:        fmt.Sprintf("Missing argument $%s.", param.Name()),
+				PrimaryLabel:   "invocation",
+				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
 			}
 		}
 	}
@@ -1570,12 +1562,10 @@ func (v *EvaluateVisitor) unusedKeywordsError(kwargs *orderedmap.LinkedMap[strin
 	// Label the parameter list's named span as the declaration side, mirroring
 	// Dart's {callable.declaration.parameters.spanWithName: "declaration"}.
 	return &sasscommon.MultiSpanSassRuntimeException{
-		Message:      fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
-		Span:         nwsSpan,
-		PrimaryLabel: "invocation",
-		SecondarySpans: map[sasscommon.FileSpan]string{
-			params.SpanWithName(): "declaration",
-		},
-		Trace: v.stackTrace(nwsSpan),
+		Message:        fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
+		Span:           nwsSpan,
+		PrimaryLabel:   "invocation",
+		SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: params.SpanWithName(), Label: "declaration"}),
+		Trace:          v.stackTrace(nwsSpan),
 	}
 }

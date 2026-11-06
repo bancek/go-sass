@@ -25,7 +25,7 @@ func highlight(fs *FileSource, start, end int) string {
 	return out
 }
 
-func highlightMultiple(primary FileSpan, label string, secondary map[FileSpan]string) string {
+func highlightMultiple(primary FileSpan, label string, secondary *SecondarySpans) string {
 	h, _ := NewHighlighterMultiple(primary, label, secondary, asciiOpts())
 	out, _ := h.Highlight()
 	return out
@@ -251,7 +251,7 @@ func TestHighlightMultipleSeparate(t *testing.T) {
 		SourceLocation{Offset: 34, Line: 2, Column: 7},
 		"zap", "zip zap zop", u)
 	got := highlightMultiple(ssc1, "one",
-		map[FileSpan]string{ssc2: "three", ssc3: "two"},
+		NewSecondarySpans(SecondarySpan{Span: ssc2, Label: "three"}, SecondarySpan{Span: ssc3, Label: "two"}),
 	)
 	want := strings.Join([]string{
 		"  ,",
@@ -272,9 +272,7 @@ func TestHighlightMultipleSameLine(t *testing.T) {
 	fs := NewFileSource([]byte("foo bar baz\n"), nil)
 	got := highlightMultiple(
 		NewSimpleFileSpan(fs, 4, 7), "bar",
-		map[FileSpan]string{
-			NewSimpleFileSpan(fs, 8, 11): "z",
-		},
+		NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs, 8, 11), Label: "z"}),
 	)
 	if !strings.Contains(got, "bar") || !strings.Contains(got, "z") {
 		t.Errorf("output missing expected labels:\n%s", got)
@@ -285,9 +283,7 @@ func TestHighlightMultipleMultiline(t *testing.T) {
 	fs := NewFileSource([]byte(hlTestText), nil)
 	got := highlightMultiple(
 		NewSimpleFileSpan(fs, 4, 34), "outer",
-		map[FileSpan]string{
-			NewSimpleFileSpan(fs, 14, 18): "inner",
-		},
+		NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs, 14, 18), Label: "inner"}),
 	)
 	if !strings.Contains(got, "inner") || !strings.Contains(got, "outer") {
 		t.Errorf("output missing expected multiline labels:\n%s", got)
@@ -301,9 +297,7 @@ func TestHighlightMultipleDifferentSources(t *testing.T) {
 	fs2 := NewFileSource([]byte("x y z\n"), nil)
 	got := highlightMultiple(
 		NewSimpleFileSpan(fs1, 2, 3), "primary",
-		map[FileSpan]string{
-			NewSimpleFileSpan(fs2, 2, 3): "note",
-		},
+		NewSecondarySpans(SecondarySpan{Span: NewSimpleFileSpan(fs2, 2, 3), Label: "note"}),
 	)
 	if !strings.Contains(got, "primary") || !strings.Contains(got, "note") {
 		t.Errorf("output missing labels:\n%s", got)
@@ -325,7 +319,7 @@ func TestHighlightMultipleSameFileURL(t *testing.T) {
 		"bar", "foo bar baz", u,
 	)
 	got := highlightMultiple(ssc1, "one",
-		map[FileSpan]string{ssc2: "three"},
+		NewSecondarySpans(SecondarySpan{Span: ssc2, Label: "three"}),
 	)
 	want := strings.Join([]string{
 		"  ,",

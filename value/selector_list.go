@@ -517,7 +517,7 @@ func (s *SelectorList) nestWithinCompound(
 						Message:      err.Error(),
 						Span:         firstSimpleSpan,
 						PrimaryLabel: "",
-						Secondary:    map[sasscommon.FileSpan]string{firstSimpleSpan: "parent selector"},
+						Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: firstSimpleSpan, Label: "parent selector"}),
 					}
 				}
 				if hasParent {
@@ -539,7 +539,7 @@ func (s *SelectorList) nestWithinCompound(
 							Message:      err.Error(),
 							Span:         firstSimpleSpan,
 							PrimaryLabel: "",
-							Secondary:    map[sasscommon.FileSpan]string{firstSimpleSpan: "parent selector"},
+							Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: firstSimpleSpan, Label: "parent selector"}),
 						}
 					}
 					nested, err := ps.Selector.(*SelectorList).NestWithin(parent, false, false)
@@ -560,7 +560,7 @@ func (s *SelectorList) nestWithinCompound(
 							Message:      err.Error(),
 							Span:         firstSimpleSpan,
 							PrimaryLabel: "",
-							Secondary:    map[sasscommon.FileSpan]string{firstSimpleSpan: "parent selector"},
+							Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: firstSimpleSpan, Label: "parent selector"}),
 						}
 					}
 					psel, err := ps.WithSelector(nested)
@@ -581,7 +581,7 @@ func (s *SelectorList) nestWithinCompound(
 							Message:      err.Error(),
 							Span:         firstSimpleSpan,
 							PrimaryLabel: "",
-							Secondary:    map[sasscommon.FileSpan]string{firstSimpleSpan: "parent selector"},
+							Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: firstSimpleSpan, Label: "parent selector"}),
 						}
 					}
 					resolvedSimples[i] = psel
@@ -621,7 +621,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		compound, err := NewCompoundSelector(resolvedSimples, componentSelectorSpan)
@@ -642,7 +642,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		cs, err := NewComplexSelector(
@@ -674,7 +674,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		return []*ComplexSelector{cs}, nil
@@ -701,7 +701,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		return withCombinators.Components, nil
@@ -727,7 +727,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      fmt.Sprintf("Selector \"%s\" can't be used as a parent in a compound selector.", complexStr),
 				Span:         trimmed,
 				PrimaryLabel: "outer selector",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 
@@ -752,7 +752,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		if suffix == nil {
@@ -777,7 +777,7 @@ func (s *SelectorList) nestWithinCompound(
 					Message:      err.Error(),
 					Span:         parentSelectorSpan,
 					PrimaryLabel: "",
-					Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+					Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 				}
 			}
 		} else {
@@ -801,7 +801,7 @@ func (s *SelectorList) nestWithinCompound(
 					Message:      err.Error(),
 					Span:         parentSelectorSpan,
 					PrimaryLabel: "",
-					Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+					Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 				}
 			}
 			combined = append(combined, added)
@@ -824,7 +824,7 @@ func (s *SelectorList) nestWithinCompound(
 					Message:      err.Error(),
 					Span:         parentSelectorSpan,
 					PrimaryLabel: "",
-					Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+					Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 				}
 			}
 		}
@@ -856,7 +856,7 @@ func (s *SelectorList) nestWithinCompound(
 				Message:      err.Error(),
 				Span:         parentSelectorSpan,
 				PrimaryLabel: "",
-				Secondary:    map[sasscommon.FileSpan]string{parentSelectorSpan: "parent selector"},
+				Secondary:    sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: parentSelectorSpan, Label: "parent selector"}),
 			}
 		}
 		result = append(result, cs)

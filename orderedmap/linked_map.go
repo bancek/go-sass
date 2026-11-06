@@ -136,6 +136,21 @@ func FromMap[K comparable, V any](m map[K]V) *LinkedMap[K, V] {
 	return om
 }
 
+// Clone returns an independent copy with the same insertion order and
+// entries. A nil map clones to an empty map.
+func (om *LinkedMap[K, V]) Clone() *LinkedMap[K, V] {
+	if om == nil {
+		return New[K, V]()
+	}
+	result := NewWithCapacity[K, V](len(om.m))
+	for _, k := range om.keys {
+		if v, ok := om.m[k]; ok {
+			result.Put(k, v)
+		}
+	}
+	return result
+}
+
 // ToMap returns a standard Go map with all current entries.
 func (om *LinkedMap[K, V]) ToMap() map[K]V {
 	if om == nil {
