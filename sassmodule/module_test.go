@@ -5,8 +5,9 @@
 package sassmodule
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/extend"
 	"github.com/bancek/go-sass/orderedmap"
@@ -20,8 +21,8 @@ func testSpan() sasscommon.FileSpan {
 	return sasscommon.NewFileSpan(nil, 0, 0)
 }
 
-func testURL() *url.URL {
-	u, _ := url.Parse("file:///test.scss")
+func testURL() *sassurl.URL {
+	u, _ := sassurl.Parse("file:///test.scss")
 	return u
 }
 

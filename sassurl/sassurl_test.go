@@ -1,194 +1,260 @@
 package sassurl
 
 import (
-	"net/url"
+	"path/filepath"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
 	tests := []struct {
-		raw        string
-		wantStr    string
-		wantPath   string
-		wantScheme string
+		input         string
+		wantString    string
+		wantScheme    string
+		wantHost      string
+		wantAuthority bool
+		wantPath      string
+		wantHasQuery  bool
+		wantQuery     string
+		wantHasFrag   bool
+		wantFragment  string
+		wantAbsolute  bool
 	}{
-		{"sass:color", "sass:color", "color", "sass"},
-		{"u:foo/bar", "u:foo/bar", "foo/bar", "u"},
-		{"u:orange", "u:orange", "orange", "u"},
-		{"pkg:%66oo", "pkg:%66oo", "foo", "pkg"},
-		{"u:%25percent", "u:%25percent", "%percent", "u"},
-		{"file:///tmp/test.scss", "file:///tmp/test.scss", "/tmp/test.scss", "file"},
-		{"http://example.com/style.scss", "http://example.com/style.scss", "/style.scss", "http"},
-		// Relative paths (no scheme) — these are the inputs that fail in Rust
-		{"callable/arguments/function/utils", "callable/arguments/function/utils", "callable/arguments/function/utils", ""},
-		{"../utils", "../utils", "../utils", ""},
-		{"./utils", "./utils", "./utils", ""},
-		{"utils", "utils", "utils", ""},
-		{"relative/path/to/file.scss", "relative/path/to/file.scss", "relative/path/to/file.scss", ""},
+		{"", "", "", "", false, "", false, "", false, "", false},
+		{".", "./", "", "", false, "./", false, "", false, "", false},
+		{"..", "../", "", "", false, "../", false, "", false, "", false},
+		{"./", "./", "", "", false, "./", false, "", false, "", false},
+		{"../", "../", "", "", false, "../", false, "", false, "", false},
+		{"foo", "foo", "", "", false, "foo", false, "", false, "", false},
+		{"foo/bar", "foo/bar", "", "", false, "foo/bar", false, "", false, "", false},
+		{"foo/./bar", "foo/bar", "", "", false, "foo/bar", false, "", false, "", false},
+		{"foo/../bar", "bar", "", "", false, "bar", false, "", false, "", false},
+		{"http://example.com/foo/bar", "http://example.com/foo/bar", "http", "example.com", true, "/foo/bar", false, "", false, "", true},
+		{"HTTP://EXAMPLE.COM/", "http://example.com/", "http", "example.com", true, "/", false, "", false, "", true},
+		{"http://example.com:80/", "http://example.com/", "http", "example.com", true, "/", false, "", false, "", true},
+		{"https://example.com:443/", "https://example.com/", "https", "example.com", true, "/", false, "", false, "", true},
+		{"sass:color", "sass:color", "sass", "", false, "color", false, "", false, "", true},
+		{"u:foo/bar", "u:foo/bar", "u", "", false, "foo/bar", false, "", false, "", true},
+		{"pkg:%66oo", "pkg:foo", "pkg", "", false, "foo", false, "", false, "", true},
+		{"u:%25percent", "u:%25percent", "u", "", false, "%25percent", false, "", false, "", true},
+		{"file:///tmp/a.scss", "file:///tmp/a.scss", "file", "", true, "/tmp/a.scss", false, "", false, "", true},
+		{"file:///tmp/a b.scss", "file:///tmp/a%20b.scss", "file", "", true, "/tmp/a%20b.scss", false, "", false, "", true},
+		{"file:///tmp/a%20b.scss", "file:///tmp/a%20b.scss", "file", "", true, "/tmp/a%20b.scss", false, "", false, "", true},
+		{"data:text/plain,hello", "data:text/plain,hello", "data", "", false, "text/plain,hello", false, "", false, "", true},
+		{"data:;charset=utf-8,a%20b", "data:;charset=utf-8,a%20b", "data", "", false, ";charset=utf-8,a%20b", false, "", false, "", true},
+		{"a b", "a%20b", "", "", false, "a%20b", false, "", false, "", false},
+		{"a%20b", "a%20b", "", "", false, "a%20b", false, "", false, "", false},
+		{"foo%2fbar", "foo%2Fbar", "", "", false, "foo%2Fbar", false, "", false, "", false},
+		{"a?b#c", "a?b#c", "", "", false, "a", true, "b", true, "c", false},
+		{"a#b", "a#b", "", "", false, "a", false, "", true, "b", false},
+		{"a?", "a?", "", "", false, "a", true, "", false, "", false},
+		{"http://user:pass@host:8080/p?q#f", "http://user:pass@host:8080/p?q#f", "http", "host", true, "/p", true, "q", true, "f", false},
+		{"http://[::1]/", "http://[::1]/", "http", "::1", true, "/", false, "", false, "", true},
+		{"http://[v1.a]/", "http://[v1.a]/", "http", "[v1.a]", true, "/", false, "", false, "", true},
+		{"http://example.com/a/../b", "http://example.com/b", "http", "example.com", true, "/b", false, "", false, "", true},
+		{"http://example.com/a/./b", "http://example.com/a/b", "http", "example.com", true, "/a/b", false, "", false, "", true},
+		{"../a", "../a", "", "", false, "../a", false, "", false, "", false},
+		{"./a", "a", "", "", false, "a", false, "", false, "", false},
+		{"a/../b", "b", "", "", false, "b", false, "", false, "", false},
+		{"a/./b", "a/b", "", "", false, "a/b", false, "", false, "", false},
+		{"a//b", "a//b", "", "", false, "a//b", false, "", false, "", false},
+		{`\foo\bar`, "/foo/bar", "", "", false, "/foo/bar", false, "", false, "", false},
+		{`C:\foo\bar`, "c:/foo/bar", "c", "", false, "/foo/bar", false, "", false, "", true},
 	}
+
 	for _, tt := range tests {
-		u, err := Parse(tt.raw)
-		if err != nil {
-			t.Errorf("Parse(%q) error: %v", tt.raw, err)
-			continue
-		}
-		if u.String() != tt.wantStr {
-			t.Errorf("Parse(%q).String() = %q, want %q", tt.raw, u.String(), tt.wantStr)
-		}
-		if u.Opaque != "" {
-			t.Errorf("Parse(%q) has Opaque=%q, want empty", tt.raw, u.Opaque)
-		}
-		if u.Path != tt.wantPath {
-			t.Errorf("Parse(%q).Path = %q, want %q", tt.raw, u.Path, tt.wantPath)
-		}
-		if u.Scheme != tt.wantScheme {
-			t.Errorf("Parse(%q).Scheme = %q, want %q", tt.raw, u.Scheme, tt.wantScheme)
-		}
+		t.Run(tt.input, func(t *testing.T) {
+			u, err := Parse(tt.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", tt.input, err)
+			}
+			if got := u.String(); got != tt.wantString {
+				t.Errorf("String() = %q, want %q", got, tt.wantString)
+			}
+			if u.Scheme != tt.wantScheme {
+				t.Errorf("Scheme = %q, want %q", u.Scheme, tt.wantScheme)
+			}
+			if u.Host != tt.wantHost {
+				t.Errorf("Host = %q, want %q", u.Host, tt.wantHost)
+			}
+			if u.HasAuthority != tt.wantAuthority {
+				t.Errorf("HasAuthority = %v, want %v", u.HasAuthority, tt.wantAuthority)
+			}
+			if u.Path != tt.wantPath {
+				t.Errorf("Path = %q, want %q", u.Path, tt.wantPath)
+			}
+			if u.HasQuery != tt.wantHasQuery {
+				t.Errorf("HasQuery = %v, want %v", u.HasQuery, tt.wantHasQuery)
+			}
+			if u.Query != tt.wantQuery {
+				t.Errorf("Query = %q, want %q", u.Query, tt.wantQuery)
+			}
+			if u.HasFragment != tt.wantHasFrag {
+				t.Errorf("HasFragment = %v, want %v", u.HasFragment, tt.wantHasFrag)
+			}
+			if u.Fragment != tt.wantFragment {
+				t.Errorf("Fragment = %q, want %q", u.Fragment, tt.wantFragment)
+			}
+			if u.IsAbs() != tt.wantAbsolute {
+				t.Errorf("IsAbs = %v, want %v", u.IsAbs(), tt.wantAbsolute)
+			}
+		})
 	}
 }
 
 func TestResolve(t *testing.T) {
 	tests := []struct {
-		name    string
-		base    func() *url.URL
-		ref     string
-		wantStr string
+		base, ref string
+		want      string
 	}{
-		{
-			name: "opaque base with relative path",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:foo/bar")
-				return u
-			},
-			ref:     "baz/qux",
-			wantStr: "u:foo/baz/qux",
-		},
-		{
-			name: "opaque base with no subdirectory",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:orange")
-				return u
-			},
-			ref:     "midstream",
-			wantStr: "u:midstream",
-		},
-		{
-			name: "opaque base (simple)",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:entrypoint")
-				return u
-			},
-			ref:     "orange",
-			wantStr: "u:orange",
-		},
-		{
-			name: "sassurl.Parse base with relative path",
-			base: func() *url.URL {
-				u, _ := Parse("u:foo/bar")
-				return u
-			},
-			ref:     "baz/qux",
-			wantStr: "u:foo/baz/qux",
-		},
-		{
-			name: "sassurl.Parse base (simple)",
-			base: func() *url.URL {
-				u, _ := Parse("u:entrypoint")
-				return u
-			},
-			ref:     "orange",
-			wantStr: "u:orange",
-		},
-		{
-			name: "http base with relative path",
-			base: func() *url.URL {
-				u, _ := url.Parse("http://example.com/foo/bar")
-				return u
-			},
-			ref:     "baz/qux",
-			wantStr: "http://example.com/foo/baz/qux",
-		},
-		{
-			name: "file base with relative path",
-			base: func() *url.URL {
-				u, _ := url.Parse("file:///tmp/foo/bar.scss")
-				return u
-			},
-			ref:     "baz/qux.scss",
-			wantStr: "file:///tmp/foo/baz/qux.scss",
-		},
-		{
-			name: "absolute reference on opaque base",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:foo/bar")
-				return u
-			},
-			ref:     "http://example.com/style.scss",
-			wantStr: "http://example.com/style.scss",
-		},
-		{
-			name: "root-relative reference on opaque base",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:foo/bar")
-				return u
-			},
-			ref:     "/baz/qux",
-			wantStr: "u:baz/qux",
-		},
-		{
-			name: "parent directory reference",
-			base: func() *url.URL {
-				u, _ := url.Parse("u:foo/bar")
-				return u
-			},
-			ref:     "../baz",
-			wantStr: "u:baz",
-		},
+		{"u:foo/bar", "baz/qux", "u:foo/baz/qux"},
+		{"u:orange", "midstream", "u:midstream"},
+		{"u:entrypoint", "orange", "u:orange"},
+		{"http://example.com/a/b", "", "http://example.com/a/b"},
+		{"http://example.com/a/b", ".", "http://example.com/a/"},
+		{"http://example.com/a/b", "..", "http://example.com/"},
+		{"http://example.com/a/b", "../c", "http://example.com/c"},
+		{"http://example.com/a/b", "/c", "http://example.com/c"},
+		{"http://example.com/a/b", "c", "http://example.com/a/c"},
+		{"http://example.com/a/b", "?q", "http://example.com/a/b?q"},
+		{"http://example.com/a/b", "#f", "http://example.com/a/b#f"},
+		{"file:///tmp/foo/bar.scss", "baz/qux.scss", "file:///tmp/foo/baz/qux.scss"},
+		{"foo/bar", "baz/qux", "foo/baz/qux"},
+		{"foo/bar", "../baz", "baz"},
+		{"foo/bar", "./baz", "foo/baz"},
+		{"foo/bar", "/baz", "/baz"},
+		{"foo/bar", "?q", "foo/bar?q"},
+		{"foo/bar", "#f", "foo/bar#f"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ref, err := url.Parse(tt.ref)
+		t.Run(tt.base+" + "+tt.ref, func(t *testing.T) {
+			base, err := Parse(tt.base)
 			if err != nil {
 				t.Fatal(err)
 			}
-			base := tt.base()
-			resolved := Resolve(base, ref)
-			if resolved.String() != tt.wantStr {
-				t.Errorf("Resolve(%s, %s) = %q, want %q",
-					base.String(), ref.String(), resolved.String(), tt.wantStr)
+			ref, err := Parse(tt.ref)
+			if err != nil {
+				t.Fatal(err)
 			}
-			// Verify the resolved URL can be used for further resolution
-			_ = resolved
+			if got := base.Resolve(ref).String(); got != tt.want {
+				t.Errorf("Resolve(%q, %q) = %q, want %q", tt.base, tt.ref, got, tt.want)
+			}
 		})
 	}
 }
 
-func TestResolveRoundTrip(t *testing.T) {
-	// Verify that resolving a relative URL against an opaque base produces
-	// a URL that, when used as a base for further resolution, works correctly.
-	entrypoint, _ := url.Parse("u:entrypoint")
-	import1 := Resolve(entrypoint, mustParseURL(t, "orange"))
-	if import1.String() != "u:orange" {
-		t.Fatalf("step 1: %q", import1.String())
+func TestFilePaths(t *testing.T) {
+	tests := []struct {
+		path    string
+		wantURL string
+	}{
+		{"/tmp/a.scss", "file:///tmp/a.scss"},
+		{"/tmp/a b.scss", "file:///tmp/a%20b.scss"},
 	}
-
-	// Now resolve midstream relative to the imported URL
-	midstream := Resolve(import1, mustParseURL(t, "midstream"))
-	if midstream.String() != "u:midstream" {
-		t.Fatalf("step 2: %q", midstream.String())
-	}
-
-	// Resolve a nested path
-	nested := Resolve(midstream, mustParseURL(t, "sub/deep"))
-	if nested.String() != "u:sub/deep" {
-		t.Fatalf("step 3: %q", nested.String())
+	for _, tt := range tests {
+		u, err := FileURLFromAbsPath(tt.path)
+		if err != nil {
+			t.Fatalf("FileURLFromAbsPath(%q): %v", tt.path, err)
+		}
+		if got := u.String(); got != tt.wantURL {
+			t.Errorf("FileURLFromAbsPath(%q) = %q, want %q", tt.path, got, tt.wantURL)
+		}
+		got, ok := u.ToFilePathString()
+		wantPath := filepath.FromSlash(tt.path)
+		if !ok || got != wantPath {
+			t.Errorf("ToFilePathString(%q) = %q, %v, want %q, true", tt.wantURL, got, ok, wantPath)
+		}
 	}
 }
 
-func mustParseURL(t *testing.T, raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		t.Fatal(err)
+func TestPathToURI(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"a.scss", "a.scss"},
+		{"dir/a.scss", "dir/a.scss"},
+		{"./a.scss", "a.scss"},
+		{"../a.scss", "../a.scss"},
+		{`C:\a\b.scss`, "C%3A%5Ca%5Cb.scss"},
 	}
-	return u
+	for _, tt := range tests {
+		u, err := pathToURIWithOS(tt.path, false)
+		if err != nil {
+			t.Fatalf("pathToURIWithOS(%q, false): %v", tt.path, err)
+		}
+		if got := u.String(); got != tt.want {
+			t.Errorf("pathToURIWithOS(%q, false) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestWindowsPathToURI(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{`C:\a\b.scss`, "file:///C:/a/b.scss"},
+		{`\\server\share\a.scss`, "file://server/share/a.scss"},
+	}
+	for _, tt := range tests {
+		u, err := pathToURIWithOS(tt.path, true)
+		if err != nil {
+			t.Fatalf("pathToURIWithOS(%q): %v", tt.path, err)
+		}
+		if got := u.String(); got != tt.want {
+			t.Errorf("pathToURIWithOS(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestWindowsFilePaths(t *testing.T) {
+	tests := []struct {
+		path    string
+		wantURL string
+	}{
+		{`C:\foo\bar.scss`, "file:///C:/foo/bar.scss"},
+		{`\\server\share\file.scss`, "file://server/share/file.scss"},
+	}
+	for _, tt := range tests {
+		u, err := windowsFileURL(normalizeFilePath(tt.path, true))
+		if err != nil {
+			t.Fatalf("windowsFileURL(%q): %v", tt.path, err)
+		}
+		if got := u.String(); got != tt.wantURL {
+			t.Errorf("windowsFileURL(%q) = %q, want %q", tt.path, got, tt.wantURL)
+		}
+	}
+	got, ok := uriToPath("/C:/foo/bar.scss", nil, true)
+	if !ok || got != `C:\foo\bar.scss` {
+		t.Errorf("uriToPath = %q, %v, want %q, true", got, ok, `C:\foo\bar.scss`)
+	}
+}
+
+func TestDataURLFromString(t *testing.T) {
+	tests := []struct {
+		contents string
+		want     string
+	}{
+		{"", "data:;charset=utf-8,"},
+		{"a", "data:;charset=utf-8,a"},
+		{"a b", "data:;charset=utf-8,a%20b"},
+		{".x { color: red; }", "data:;charset=utf-8,.x%20%7B%20color:%20red;%20%7D"},
+	}
+	for _, tt := range tests {
+		if got := DataURLFromString(tt.contents); got != tt.want {
+			t.Errorf("DataURLFromString(%q) = %q, want %q", tt.contents, got, tt.want)
+		}
+	}
+}
+
+func TestEqual(t *testing.T) {
+	a, _ := Parse("HTTP://EXAMPLE.COM/")
+	b, _ := Parse("http://example.com/")
+	if !a.Equal(b) {
+		t.Error("expected equal URLs")
+	}
+	c, _ := Parse("http://example.com/x")
+	if a.Equal(c) {
+		t.Error("expected unequal URLs")
+	}
 }

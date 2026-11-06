@@ -10,8 +10,9 @@ package value
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -84,7 +85,7 @@ type SelectorParserOptions struct {
 // instead of the parser-internal span.
 //
 // Matches Dart: SelectorParser constructor
-func NewSelectorParser(contents string, url *url.URL, interpolationMap *InterpolationMap, opts *SelectorParserOptions) *SelectorParser {
+func NewSelectorParser(contents string, url *sassurl.URL, interpolationMap *InterpolationMap, opts *SelectorParserOptions) *SelectorParser {
 	allowParent := true
 	plainCss := false
 	var logger sasslogger.Logger

@@ -10,7 +10,8 @@ package sasscommon
 
 import (
 	"maps"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // MultiSpan is a FileSpan wrapper with secondary spans attached, so that
@@ -65,7 +66,7 @@ func (m *MultiSpan) Context() (string, error) { return m.Primary.Context() }
 
 // SourceURL returns the source URL of the primary span.
 // Matches Dart: MultiSpan.sourceUrl
-func (m *MultiSpan) SourceURL() (*url.URL, error) { return m.Primary.SourceURL() }
+func (m *MultiSpan) SourceURL() (*sassurl.URL, error) { return m.Primary.SourceURL() }
 
 // SpanFile returns the primary span's source URL as a string, or "" when
 // the URL is unknown. It exists for string-oriented logging paths that

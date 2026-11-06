@@ -9,9 +9,10 @@ package eval
 // dart-source: lib/src/importer/utils.dart (resolveImportPath section)
 
 import (
-	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sassio"
@@ -131,8 +132,11 @@ func exactlyOne(paths []string) (string, error) {
 		for _, p := range paths {
 			// Candidates render as file: URLs, matching the human-readable
 			// listing format.
-			u := &url.URL{Scheme: "file", Path: filepath.ToSlash(p)}
-			lines = append(lines, "  "+sasscommon.PrettyUri(u))
+			if u, err := sassurl.FileURLFromAbsPath(p); err == nil {
+				lines = append(lines, "  "+sasscommon.PrettyUri(u))
+			} else {
+				lines = append(lines, "  "+p)
+			}
 		}
 		return "", sasscommon.NewSassScriptException(strings.Join(lines, "\n"), nil)
 	}

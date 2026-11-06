@@ -1,9 +1,11 @@
 package sasscommon
 
 import (
-	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 func TestExceptionToCssStringSimple(t *testing.T) {
@@ -234,7 +236,7 @@ func TestFrameForSpan(t *testing.T) {
 
 func TestFrameLocation(t *testing.T) {
 	// Frame with URI — PrettyUri strips file:// prefix
-	u, _ := url.Parse("file:///a.scss")
+	u, _ := sassurl.Parse("file:///a.scss")
 	fs := NewFileSource([]byte("body { }\n"), u)
 	span := NewSimpleFileSpan(fs, 0, 8)
 	frame, err := FrameForSpan(span, "root stylesheet")
@@ -242,7 +244,7 @@ func TestFrameLocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	loc := frame.location()
-	want := "/a.scss 1:1"
+	want := filepath.FromSlash("/a.scss") + " 1:1"
 	if loc != want {
 		t.Errorf("location() = %q, want %q", loc, want)
 	}
@@ -302,7 +304,7 @@ func TestTraceStringNil(t *testing.T) {
 }
 
 func TestSassExceptionErrorWithOptions(t *testing.T) {
-	u, _ := url.Parse("file:///a.scss")
+	u, _ := sassurl.Parse("file:///a.scss")
 	fs := NewFileSource([]byte("a { color: red; }"), u)
 	span := NewSimpleFileSpan(fs, 3, 4)
 	exc := &SassException{
@@ -316,7 +318,7 @@ func TestSassExceptionErrorWithOptions(t *testing.T) {
 		`1 ` + "\u2502" + ` a { color: red; }`,
 		`  ` + "\u2502" + `    ^`,
 		`  ` + "\u2575",
-		`  /a.scss 1:4  root stylesheet`,
+		`  ` + filepath.FromSlash("/a.scss") + ` 1:4  root stylesheet`,
 	}, "\n")
 	if got != want {
 		t.Errorf("ErrorWithOptions = %q, want %q", got, want)
@@ -324,7 +326,7 @@ func TestSassExceptionErrorWithOptions(t *testing.T) {
 }
 
 func TestSassRuntimeExceptionErrorWithOptions(t *testing.T) {
-	u, _ := url.Parse("file:///a.scss")
+	u, _ := sassurl.Parse("file:///a.scss")
 	fs := NewFileSource([]byte("a { color: red; }"), u)
 	span := NewSimpleFileSpan(fs, 3, 4)
 	trace := NewTrace([]Frame{
@@ -352,7 +354,7 @@ func TestSassRuntimeExceptionErrorWithOptions(t *testing.T) {
 }
 
 func TestSassFormatExceptionErrorWithOptions(t *testing.T) {
-	u, _ := url.Parse("file:///a.scss")
+	u, _ := sassurl.Parse("file:///a.scss")
 	fs := NewFileSource([]byte("a { color: red; }"), u)
 	span := NewSimpleFileSpan(fs, 3, 4)
 	exc := &SassFormatException{
@@ -366,7 +368,7 @@ func TestSassFormatExceptionErrorWithOptions(t *testing.T) {
 		`1 ` + "\u2502" + ` a { color: red; }`,
 		`  ` + "\u2502" + `    ^`,
 		`  ` + "\u2575",
-		`  /a.scss 1:4  root stylesheet`,
+		`  ` + filepath.FromSlash("/a.scss") + ` 1:4  root stylesheet`,
 	}, "\n")
 	if got != want {
 		t.Errorf("ErrorWithOptions = %q, want %q", got, want)
@@ -412,7 +414,7 @@ func TestSassScriptExceptionWithSpanNoArg(t *testing.T) {
 }
 
 func TestSassExceptionToCssStringIncludesHighlight(t *testing.T) {
-	u, _ := url.Parse("file:///a.scss")
+	u, _ := sassurl.Parse("file:///a.scss")
 	fs := NewFileSource([]byte("a { color: red; }"), u)
 	span := NewSimpleFileSpan(fs, 3, 4)
 	exc := &SassException{Message: "expected selector.", Span: span}
@@ -424,7 +426,7 @@ func TestSassExceptionToCssStringIncludesHighlight(t *testing.T) {
 	if !strings.Contains(got, "╷") {
 		t.Error("expected comment to contain highlight box-drawing chars")
 	}
-	if !strings.Contains(got, "/a.scss") {
+	if !strings.Contains(got, filepath.FromSlash("/a.scss")) {
 		t.Error("expected comment to contain source file path")
 	}
 }

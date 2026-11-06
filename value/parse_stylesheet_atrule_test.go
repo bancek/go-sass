@@ -1,9 +1,10 @@
 package value
 
 import (
-	goUrl "net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -61,8 +62,8 @@ func skipAtRuleName(p *StylesheetParser) sasscommon.LineScannerState {
 	return s
 }
 
-func urlParse(rawURL string) (*goUrl.URL, error) {
-	return goUrl.Parse(rawURL)
+func urlParse(rawURL string) (*sassurl.URL, error) {
+	return sassurl.Parse(rawURL)
 }
 
 // ======================================================================
@@ -672,6 +673,19 @@ func TestAtRuleUseNamespaceImplicitUnderscore(t *testing.T) {
 	}
 	if ns == nil || *ns != "foo" {
 		t.Errorf("ns = %v, want 'foo'", ns)
+	}
+}
+
+func TestAtRuleUseNamespaceDecodesPercentEscapes(t *testing.T) {
+	p := newTestStylesheetParserAtRule("")
+	url, _ := urlParse("http://example.com/_dep%20file.scss")
+	start := skipAtRuleName(p)
+	_, err := p.useNamespace(url, start)
+	if err == nil {
+		t.Fatal("expected error for a namespace with a space")
+	}
+	if !strings.Contains(err.Error(), `"dep file"`) {
+		t.Errorf("error = %q, want decoded namespace %q", err.Error(), "dep file")
 	}
 }
 

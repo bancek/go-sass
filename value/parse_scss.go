@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/parse/scss.dart
 
 import (
-	goUrl "net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -32,7 +32,7 @@ type ScssParser struct {
 // selectors parse as interpolated selectors rather than raw interpolation.
 // Style rule selectors parse as unconstrained values here on purpose: they
 // are re-parsed after evaluation, so no selector structure is built yet.
-func NewScssParser(contents []byte, url *goUrl.URL, parseSelectors bool) *ScssParser {
+func NewScssParser(contents []byte, url *sassurl.URL, parseSelectors bool) *ScssParser {
 	p := &ScssParser{}
 	p.Parser = *NewParser(contents, url, nil)
 	p.StylesheetParser.parseSelectors = parseSelectors

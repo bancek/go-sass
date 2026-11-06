@@ -10,8 +10,9 @@ package sasscommon
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // Frame represents a single stack frame in a Sass trace.
@@ -25,7 +26,7 @@ import (
 type Frame struct {
 	// URI is the canonical URL of the stylesheet that contributed the
 	// frame, or nil when the library is unknown.
-	URI *url.URL
+	URI *sassurl.URL
 	// Line is the 1-based line number of the frame.
 	Line int
 	// Column is the 1-based column number of the frame.
@@ -192,7 +193,7 @@ type SassFormatException struct {
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure,
 	// stamped at the evaluate boundary even on failure.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -270,7 +271,7 @@ func (e *SassFormatException) Trace() (*Trace, error) {
 // without mutating the original.
 //
 // Matches Dart: SassFormatException.withLoadedUrls
-func (e *SassFormatException) WithLoadedUrls(urls []*url.URL) *SassFormatException {
+func (e *SassFormatException) WithLoadedUrls(urls []*sassurl.URL) *SassFormatException {
 	return &SassFormatException{
 		Message:    e.Message,
 		Span:       e.Span,
@@ -298,7 +299,7 @@ type SassException struct {
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure,
 	// reported even on failure paths.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -382,7 +383,7 @@ func (e *SassException) ToCssString() string {
 // only so the evaluate boundary can stamp URLs without mutating the error.
 //
 // Matches Dart: SassException.withLoadedUrls
-func (e *SassException) WithLoadedUrls(urls []*url.URL) *SassException {
+func (e *SassException) WithLoadedUrls(urls []*sassurl.URL) *SassException {
 	return &SassException{
 		Message:    e.Message,
 		Span:       e.Span,
@@ -412,7 +413,7 @@ type MultiSpanSassFormatException struct {
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -469,7 +470,7 @@ func (e *MultiSpanSassFormatException) Trace() (*Trace, error) {
 // stamping pass.
 //
 // Matches Dart: MultiSpanSassFormatException.withLoadedUrls
-func (e *MultiSpanSassFormatException) WithLoadedUrls(urls []*url.URL) *MultiSpanSassFormatException {
+func (e *MultiSpanSassFormatException) WithLoadedUrls(urls []*sassurl.URL) *MultiSpanSassFormatException {
 	return &MultiSpanSassFormatException{
 		Message:      e.Message,
 		Span:         e.Span,
@@ -501,7 +502,7 @@ type MultiSpanSassException struct {
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -587,7 +588,7 @@ func (e *MultiSpanSassException) Trace() (*Trace, error) {
 // stamping pass.
 //
 // Matches Dart: MultiSpanSassException.withLoadedUrls
-func (e *MultiSpanSassException) WithLoadedUrls(urls []*url.URL) *MultiSpanSassException {
+func (e *MultiSpanSassException) WithLoadedUrls(urls []*sassurl.URL) *MultiSpanSassException {
 	return &MultiSpanSassException{
 		Message:      e.Message,
 		Span:         e.Span,
@@ -688,7 +689,7 @@ type SassRuntimeException struct {
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -758,7 +759,7 @@ func (e *SassRuntimeException) WithAdditionalSpan(span FileSpan, label string) *
 // exported only for the evaluate-boundary stamping pass.
 //
 // Matches Dart: SassRuntimeException.withLoadedUrls
-func (e *SassRuntimeException) WithLoadedUrls(urls []*url.URL) *SassRuntimeException {
+func (e *SassRuntimeException) WithLoadedUrls(urls []*sassurl.URL) *SassRuntimeException {
 	return &SassRuntimeException{
 		Message:    e.Message,
 		Span:       e.Span,
@@ -790,7 +791,7 @@ type MultiSpanSassRuntimeException struct {
 	// Cause chains the underlying error, if any.
 	Cause error
 	// LoadedUrls lists canonical stylesheet URLs loaded before the failure.
-	LoadedUrls []*url.URL
+	LoadedUrls []*sassurl.URL
 }
 
 // Error renders the error with default (non-color) highlight options.
@@ -842,7 +843,7 @@ func (e *MultiSpanSassRuntimeException) ToCssString() string {
 // stamping pass.
 //
 // Matches Dart: MultiSpanSassRuntimeException.withLoadedUrls
-func (e *MultiSpanSassRuntimeException) WithLoadedUrls(urls []*url.URL) *MultiSpanSassRuntimeException {
+func (e *MultiSpanSassRuntimeException) WithLoadedUrls(urls []*sassurl.URL) *MultiSpanSassRuntimeException {
 	return &MultiSpanSassRuntimeException{
 		Message:        e.Message,
 		Span:           e.Span,

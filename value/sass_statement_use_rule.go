@@ -10,8 +10,9 @@ package value
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -20,7 +21,7 @@ import (
 //
 // It loads another module and binds its public members under a namespace.
 type UseRule struct {
-	url *url.URL
+	url *sassurl.URL
 	// Namespace qualifies members of the used module.
 	// Nil means the members are usable without a namespace.
 	Namespace *string
@@ -32,7 +33,7 @@ type UseRule struct {
 // NewUseRule creates a @use rule loading u under namespace with configuration.
 // It reports an error when a configured variable is guarded, which @use
 // forbids.
-func NewUseRule(u *url.URL, namespace *string, span sasscommon.FileSpan, configuration []*ConfiguredVariable) (*UseRule, error) {
+func NewUseRule(u *sassurl.URL, namespace *string, span sasscommon.FileSpan, configuration []*ConfiguredVariable) (*UseRule, error) {
 	if configuration == nil {
 		configuration = []*ConfiguredVariable{}
 	}
@@ -50,7 +51,7 @@ func NewUseRule(u *url.URL, namespace *string, span sasscommon.FileSpan, configu
 }
 
 // URL returns the URI of the used module.
-func (u *UseRule) URL() *url.URL { return u.url }
+func (u *UseRule) URL() *sassurl.URL { return u.url }
 
 // URLSpan returns the span covering the quoted module URL.
 func (u *UseRule) URLSpan() (sasscommon.FileSpan, error) {
@@ -99,8 +100,8 @@ func (u *UseRule) String() (string, error) {
 	return builder.String(), nil
 }
 
-func urlBasename(u *url.URL) string {
-	path := u.Path
+func urlBasename(u *sassurl.URL) string {
+	path := sassurl.DecodeRelativePath(u.Path)
 	if idx := strings.LastIndex(path, "/"); idx >= 0 {
 		path = path[idx+1:]
 	}
@@ -116,7 +117,7 @@ func urlBasename(u *url.URL) string {
 // Throws a SassFormatException if parsing fails.
 //
 // Matches Dart: UseRule.parse
-func ParseUseRule(contents string, url *url.URL) (*UseRule, error) {
+func ParseUseRule(contents string, url *sassurl.URL) (*UseRule, error) {
 	p := NewScssParser([]byte(contents), url, false)
 	return parseSingleProduction(&p.StylesheetParser, func() (*UseRule, error) {
 		start := p.scanner.State()

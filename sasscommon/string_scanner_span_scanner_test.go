@@ -11,8 +11,9 @@ package sasscommon
 // dart-source: (external) package:string_scanner/test/span_scanner_test.dart, (external) package:string_scanner/test/string_scanner_test.dart, (external) package:string_scanner/test/line_scanner_test.dart, (external) package:string_scanner/test/error_test.dart
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 func checkScanError(t *testing.T, err error) {
@@ -1168,8 +1169,8 @@ func TestErrorSourceURL(t *testing.T) {
 
 // -- helpers ----------------------------------------------------------------
 
-func mustParseURL(t *testing.T, s string) *url.URL {
-	u, err := url.Parse(s)
+func mustParseURL(t *testing.T, s string) *sassurl.URL {
+	u, err := sassurl.Parse(s)
 	if err != nil {
 		t.Fatal(err)
 	}

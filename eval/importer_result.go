@@ -8,7 +8,8 @@ package eval
 
 import (
 	"fmt"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // dart-source: lib/src/importer/result.dart
@@ -29,7 +30,7 @@ type ImporterResult struct {
 	// is generated automatically from Contents.
 	//
 	// Matches Dart: ImporterResult._sourceMapUrl
-	sourceMapURL *url.URL
+	sourceMapURL *sassurl.URL
 }
 
 // NewImporterResult creates an ImporterResult holding contents parsed with
@@ -38,7 +39,7 @@ type ImporterResult struct {
 // The source-map URL must be absolute when supplied. Dart's deprecated
 // indented flag has no counterpart here: callers always pass the syntax
 // explicitly.
-func NewImporterResult(contents string, syntax Syntax, sourceMapURL *url.URL) (*ImporterResult, error) {
+func NewImporterResult(contents string, syntax Syntax, sourceMapURL *sassurl.URL) (*ImporterResult, error) {
 	if sourceMapURL != nil && sourceMapURL.Scheme == "" {
 		return nil, fmt.Errorf("sourceMapURL must be absolute")
 	}
@@ -57,11 +58,11 @@ func NewImporterResult(contents string, syntax Syntax, sourceMapURL *url.URL) (*
 // importer supplies no URL.
 //
 // Matches Dart: ImporterResult.sourceMapUrl
-func (r *ImporterResult) SourceMapURL() *url.URL {
+func (r *ImporterResult) SourceMapURL() *sassurl.URL {
 	if r.sourceMapURL != nil {
 		return r.sourceMapURL
 	}
 	// Dart: Uri.dataFromString defaults to text/plain MIME type — result.dart
-	u, _ := url.Parse("data:text/plain;charset=utf-8," + url.PathEscape(r.Contents))
+	u, _ := sassurl.Parse(sassurl.DataURLFromString(r.Contents))
 	return u
 }

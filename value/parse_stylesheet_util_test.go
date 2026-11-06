@@ -321,11 +321,17 @@ func TestUrlStringValid(t *testing.T) {
 }
 
 func TestUrlStringInvalid(t *testing.T) {
-	// An invalid percent-encoded sequence causes url.Parse to fail
-	p := newTestStylesheetParser(`"%ZZ"`)
+	p := newTestStylesheetParser(`"http://example.com:bad/"`)
 	_, err := p.urlString()
 	if err == nil {
-		t.Error("expected error for invalid URL")
+		t.Fatal("expected error for invalid URL")
+	}
+	formatErr, ok := err.(*sasscommon.SassFormatException)
+	if !ok {
+		t.Fatalf("error type = %T, want *sasscommon.SassFormatException", err)
+	}
+	if formatErr.Message != "Invalid URL: Invalid port" {
+		t.Errorf("message = %q, want %q", formatErr.Message, "Invalid URL: Invalid port")
 	}
 }
 

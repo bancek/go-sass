@@ -8,8 +8,9 @@ package eval
 
 import (
 	"fmt"
-	"net/url"
 	"time"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sassio"
@@ -51,7 +52,7 @@ func NewPackageImporter(config PackageConfig, io sassio.IO) *PackageImporter {
 // through to the same filesystem lookup. All other schemes return nil.
 //
 // Matches Dart: PackageImporter.canonicalize
-func (i *PackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*url.URL, error) {
+func (i *PackageImporter) Canonicalize(u *sassurl.URL, ctx *CanonicalizeContext) (*sassurl.URL, error) {
 	if u.Scheme == "file" {
 		return i.cwd.Canonicalize(u, ctx)
 	}
@@ -74,7 +75,7 @@ func (i *PackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*u
 // working-directory filesystem importer.
 //
 // Matches Dart: PackageImporter.load
-func (i *PackageImporter) Load(u *url.URL) (*ImporterResult, error) {
+func (i *PackageImporter) Load(u *sassurl.URL) (*ImporterResult, error) {
 	return i.cwd.Load(u)
 }
 
@@ -84,11 +85,11 @@ func (i *PackageImporter) Load(u *url.URL) (*ImporterResult, error) {
 // belongs to another importer.
 //
 // Matches Dart: PackageImporter.couldCanonicalize
-func (i *PackageImporter) CouldCanonicalize(u *url.URL, canonicalURL *url.URL) bool {
+func (i *PackageImporter) CouldCanonicalize(u *sassurl.URL, canonicalURL *sassurl.URL) bool {
 	if u.Scheme != "file" && u.Scheme != "package" && u.Scheme != "" {
 		return false
 	}
-	return i.cwd.CouldCanonicalize(&url.URL{Path: u.Path}, canonicalURL)
+	return i.cwd.CouldCanonicalize(&sassurl.URL{Path: u.Path}, canonicalURL)
 }
 
 // IsNonCanonicalScheme always returns false: package: URLs canonicalize to
@@ -101,7 +102,7 @@ func (i *PackageImporter) IsNonCanonicalScheme(scheme string) bool {
 // working-directory filesystem importer.
 //
 // Matches Dart: PackageImporter.modificationTime
-func (i *PackageImporter) ModificationTime(canonicalURL *url.URL) (time.Time, error) {
+func (i *PackageImporter) ModificationTime(canonicalURL *sassurl.URL) (time.Time, error) {
 	return i.cwd.ModificationTime(canonicalURL)
 }
 

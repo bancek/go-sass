@@ -10,7 +10,8 @@ package embedded
 
 import (
 	supf "fmt"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // ImporterBase is the shared base for importers that resolve through the
@@ -37,8 +38,8 @@ type ImporterBase struct {
 // error.
 //
 // Matches Dart: ImporterBase.parseAbsoluteUrl in importer/base.dart.
-func (b *ImporterBase) ParseAbsoluteURL(source, urlStr string) (*url.URL, error) {
-	parsedURL, err := url.Parse(urlStr)
+func (b *ImporterBase) ParseAbsoluteURL(source, urlStr string) (*sassurl.URL, error) {
+	parsedURL, err := sassurl.Parse(urlStr)
 	if err != nil {
 		return nil, supf.Errorf("%s must return a URL, was \"%s\"", source, urlStr)
 	}

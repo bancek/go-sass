@@ -2,8 +2,10 @@ package sasslogger
 
 import (
 	"bytes"
-	"net/url"
+	"path/filepath"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -111,11 +113,11 @@ func TestStderrDebugNoSpan(t *testing.T) {
 func TestStderrDebugWithSpan(t *testing.T) {
 	var buf bytes.Buffer
 	l := NewStderrLoggerWithWriter(false, true, &buf)
-	u, _ := url.Parse("file:///test.scss")
+	u, _ := sassurl.Parse("file:///test.scss")
 	fs := sasscommon.NewFileSource([]byte("body { }\n"), u)
 	var s sasscommon.FileSpan = sasscommon.NewSimpleFileSpan(fs, 0, 8)
 	l.Debug("debug msg", &s)
-	expected := "/test.scss:1 DEBUG: debug msg\n"
+	expected := filepath.FromSlash("/test.scss") + ":1 DEBUG: debug msg\n"
 	if out := buf.String(); out != expected {
 		t.Errorf("got %q, want %q", out, expected)
 	}

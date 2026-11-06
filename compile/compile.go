@@ -10,8 +10,9 @@ package compile
 
 import (
 	"fmt"
-	"net/url"
 	"path/filepath"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/eval"
@@ -234,11 +235,11 @@ func compileStylesheet(
 				// Empty URL (stdin/string input without explicit URL):
 				// convert to data: URI containing the file contents.
 				if file, ferr := sspan.File(); ferr == nil && file != nil {
-					serResult.SourceMap.URLs[i] = "data:text/plain;charset=utf-8," + url.PathEscape(file.Text())
+					serResult.SourceMap.URLs[i] = sassurl.DataURLFromString(file.Text())
 				}
 			} else {
 				// Rewrite using the importer's sourceMapUrl if available.
-				parsed, perr := url.Parse(urlStr)
+				parsed, perr := sassurl.Parse(urlStr)
 				if perr == nil {
 					serResult.SourceMap.URLs[i] = importCache.SourceMapURL(parsed)
 				}
@@ -281,7 +282,10 @@ func Compile(path string, io sassio.IO, opts *CompileOptions) (*CompileResult, e
 	if err != nil {
 		return nil, err
 	}
-	fileURL := &url.URL{Scheme: "file", Path: filepath.ToSlash(absPath)}
+	fileURL, err := sassurl.FileURLFromAbsPath(absPath)
+	if err != nil {
+		return nil, err
+	}
 
 	// Default LoadPaths to the directory containing the file being compiled,
 	// so relative imports resolve next to the entrypoint.
@@ -312,7 +316,7 @@ func CompileStringToResult(
 	source string,
 	io sassio.IO,
 	syntax eval.Syntax,
-	url *url.URL,
+	url *sassurl.URL,
 	importers []eval.Importer,
 	importer eval.Importer,
 	functions []sasscallable.Callable,

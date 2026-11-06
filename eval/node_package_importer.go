@@ -11,11 +11,12 @@ package eval
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/orderedmap"
 	"github.com/bancek/go-sass/sasscommon"
@@ -93,7 +94,7 @@ func (i *NodePackageImporter) IsNonCanonicalScheme(scheme string) bool {
 // present-but-malformed one fails as a parse error naming the package.
 //
 // Matches Dart: NodePackageImporter.canonicalize
-func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*url.URL, error) {
+func (i *NodePackageImporter) Canonicalize(u *sassurl.URL, ctx *CanonicalizeContext) (*sassurl.URL, error) {
 	if u.Scheme == "file" {
 		return i.cwd.Canonicalize(u, ctx)
 	}
@@ -101,7 +102,7 @@ func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext)
 		return nil, nil
 	}
 
-	if u.Host != "" || u.User != nil {
+	if u.Host != "" || u.UserInfo != "" {
 		return nil, sasscommon.NewSassScriptException("A pkg: URL must not have a host, port, username or password.", nil)
 	}
 	if strings.HasPrefix(u.Path, "/") {
@@ -110,7 +111,7 @@ func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext)
 	if u.Path == "" {
 		return nil, sasscommon.NewSassScriptException("A pkg: URL must not have an empty path.", nil)
 	}
-	if u.RawQuery != "" || u.Fragment != "" {
+	if u.HasQuery || u.HasFragment {
 		return nil, sasscommon.NewSassScriptException("A pkg: URL must not have a query or fragment.", nil)
 	}
 
@@ -166,7 +167,7 @@ func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext)
 			// prefers the @import import-only variant when the load runs
 			// under an @import rule.
 			resolved := resolveImportOnly(i.io, path, ctx.FromImport)
-			return &url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Clean(resolved))}, nil
+			return sassurl.FileURLFromAbsPath(filepath.Clean(resolved))
 		}
 		// An exports hit that is not a stylesheet is a hard error, not a
 		// decline: the mapping unambiguously owns this URL.
@@ -182,7 +183,7 @@ func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext)
 		rootPath := resolvePackageRootValues(i.io, packageRoot, packageManifest, ctx.FromImport)
 		if rootPath != "" {
 			// Matches Dart: p.toUri(p.canonicalize(rootPath))
-			return &url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Clean(rootPath))}, nil
+			return sassurl.FileURLFromAbsPath(filepath.Clean(rootPath))
 		}
 		return nil, nil
 	}
@@ -190,14 +191,18 @@ func (i *NodePackageImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext)
 	// Subpath loads fall back to the subpath relative to the package root,
 	// resolved with the usual partial/extension/index rules.
 	subpathInRoot := filepath.Join(packageRoot, subpath)
-	return i.cwd.Canonicalize(&url.URL{Scheme: "file", Path: subpathInRoot}, ctx)
+	fileURL, err := sassurl.FileURLFromAbsPath(subpathInRoot)
+	if err != nil {
+		return nil, err
+	}
+	return i.cwd.Canonicalize(fileURL, ctx)
 }
 
 // Load reads a previously canonicalized file: URL through the
 // working-directory filesystem importer.
 //
 // Matches Dart: NodePackageImporter.load
-func (i *NodePackageImporter) Load(u *url.URL) (*ImporterResult, error) {
+func (i *NodePackageImporter) Load(u *sassurl.URL) (*ImporterResult, error) {
 	return i.cwd.Load(u)
 }
 
@@ -205,7 +210,7 @@ func (i *NodePackageImporter) Load(u *url.URL) (*ImporterResult, error) {
 // through node_modules, so invalidation must conservatively assume a match.
 //
 // Matches Dart: inherited Importer.couldCanonicalize — unconditionally returns true
-func (i *NodePackageImporter) CouldCanonicalize(u *url.URL, canonicalURL *url.URL) bool {
+func (i *NodePackageImporter) CouldCanonicalize(u *sassurl.URL, canonicalURL *sassurl.URL) bool {
 	return true
 }
 
@@ -214,7 +219,7 @@ func (i *NodePackageImporter) CouldCanonicalize(u *url.URL, canonicalURL *url.UR
 // stating node_modules contents.
 //
 // Matches Dart: inherited Importer.modificationTime — returns DateTime.now()
-func (i *NodePackageImporter) ModificationTime(canonicalURL *url.URL) (time.Time, error) {
+func (i *NodePackageImporter) ModificationTime(canonicalURL *sassurl.URL) (time.Time, error) {
 	return time.Now(), nil
 }
 

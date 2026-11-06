@@ -6,11 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bancek/go-sass/orderedmap"
 	"github.com/bancek/go-sass/sassurl"
 )
+
+func fileURLForPath(path string) string {
+	return "file:///" + strings.TrimPrefix(filepath.ToSlash(path), "/")
+}
 
 // writeNodePackage lays out a package under <dir>/node_modules/p and returns a
 // NodePackageImporter rooted at <dir>.
@@ -55,11 +60,11 @@ func TestNodePackageExportsImportOnlyForImport(t *testing.T) {
 		"main.import.scss": "a { b: 2; }",
 	})
 
-	want := "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", "main.import.scss"))
+	want := fileURLForPath(filepath.Join(dir, "node_modules", "p", "main.import.scss"))
 	if got := canonicalizePkg(t, imp, true); got != want {
 		t.Errorf("import: got %q, want %q", got, want)
 	}
-	want = "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", "main.scss"))
+	want = fileURLForPath(filepath.Join(dir, "node_modules", "p", "main.scss"))
 	if got := canonicalizePkg(t, imp, false); got != want {
 		t.Errorf("use: got %q, want %q", got, want)
 	}
@@ -73,7 +78,7 @@ func TestNodePackageExportsMissingImportOnlyFallsBack(t *testing.T) {
 		"main.scss":    "a { b: 1; }",
 	})
 
-	want := "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", "main.scss"))
+	want := fileURLForPath(filepath.Join(dir, "node_modules", "p", "main.scss"))
 	if got := canonicalizePkg(t, imp, true); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
@@ -88,11 +93,11 @@ func TestNodePackageSassKeyImportOnlyForImport(t *testing.T) {
 		"via-sass.import.scss": "a { b: 2; }",
 	})
 
-	want := "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", "via-sass.import.scss"))
+	want := fileURLForPath(filepath.Join(dir, "node_modules", "p", "via-sass.import.scss"))
 	if got := canonicalizePkg(t, imp, true); got != want {
 		t.Errorf("import: got %q, want %q", got, want)
 	}
-	want = "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", "via-sass.scss"))
+	want = fileURLForPath(filepath.Join(dir, "node_modules", "p", "via-sass.scss"))
 	if got := canonicalizePkg(t, imp, false); got != want {
 		t.Errorf("use: got %q, want %q", got, want)
 	}
@@ -112,11 +117,11 @@ func TestNodePackageIndexFallbackImportOnly(t *testing.T) {
 			tc.importOnly:  "a { b: 2; }",
 		})
 
-		want := "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", tc.importOnly))
+		want := fileURLForPath(filepath.Join(dir, "node_modules", "p", tc.importOnly))
 		if got := canonicalizePkg(t, imp, true); got != want {
 			t.Errorf("%s import: got %q, want %q", tc.index, got, want)
 		}
-		want = "file://" + filepath.ToSlash(filepath.Join(dir, "node_modules", "p", tc.index))
+		want = fileURLForPath(filepath.Join(dir, "node_modules", "p", tc.index))
 		if got := canonicalizePkg(t, imp, false); got != want {
 			t.Errorf("%s use: got %q, want %q", tc.index, got, want)
 		}

@@ -10,8 +10,9 @@ package sasscommon
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // FileSpan unifies three Dart types into one Go interface: FileSpan plus
@@ -27,7 +28,7 @@ import (
 // Matches Dart: FileSpan + SourceSpanWithContext + SourceSpan (package:source_span)
 type FileSpan interface {
 	Span
-	SourceURL() (*url.URL, error)
+	SourceURL() (*sassurl.URL, error)
 
 	// File returns the FileSource this span belongs to.
 	// Matches Dart: FileSpan.file
@@ -144,7 +145,7 @@ func (s SimpleFileSpan) File() (*FileSource, error) { return s.file, nil }
 // its URL) is unknown.
 //
 // Matches _FileSpan.sourceUrl
-func (s SimpleFileSpan) SourceURL() (*url.URL, error) {
+func (s SimpleFileSpan) SourceURL() (*sassurl.URL, error) {
 	if s.file == nil {
 		return nil, nil
 	}
@@ -275,7 +276,7 @@ func (s SimpleFileSpan) Expand(other FileSpan) (FileSpan, error) {
 // sameURL reports whether a and b name the same source: two nil URLs count
 // as the same (both unknown), while a nil/non-nil pair never matches.
 // Comparison is by URL string, so distinct URL values with equal text agree.
-func sameURL(a, b *url.URL) bool {
+func sameURL(a, b *sassurl.URL) bool {
 	if a == nil && b == nil {
 		return true
 	}

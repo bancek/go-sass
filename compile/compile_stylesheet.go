@@ -11,9 +11,10 @@ package compile
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/eval"
 	"github.com/bancek/go-sass/sasscommon"
@@ -230,7 +231,7 @@ func writeSourceMap(sassIO sassio.IO, opts *CompileOptions, sm *sourcemap.Single
 //
 // Matches Dart: ExecutableOptions.sourceMapUrl (options.dart:556-567)
 func sourceMapURL(opts *CompileOptions, rawURL, destination string) string {
-	u, err := url.Parse(rawURL)
+	u, err := sassurl.Parse(rawURL)
 	if err != nil {
 		return rawURL
 	}
@@ -241,7 +242,7 @@ func sourceMapURL(opts *CompileOptions, rawURL, destination string) string {
 
 	path := rawURL
 	if u.Scheme == "file" {
-		path = u.Path
+		path = u.FSPath()
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -260,7 +261,11 @@ func sourceMapURL(opts *CompileOptions, rawURL, destination string) string {
 		return pathToURI(filepath.ToSlash(rel))
 	}
 
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}).String()
+	fileURL, err := sassurl.FileURLFromAbsPath(abs)
+	if err != nil {
+		return rawURL
+	}
+	return fileURL.String()
 }
 
 // relativeURI returns the from-relative URI for to, used for the source map link.
@@ -286,7 +291,11 @@ func relativeURI(from, to string) string {
 // pathToURI converts a relative or absolute path to its URI string form,
 // slash-separated so Windows paths still form valid URIs.
 func pathToURI(path string) string {
-	return (&url.URL{Path: path}).String()
+	u, err := sassurl.PathToURI(path)
+	if err != nil {
+		return path
+	}
+	return u.String()
 }
 
 // dartDataURIEncode percent-encodes content for a data: URI exactly like

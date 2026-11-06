@@ -10,9 +10,10 @@ package value
 
 import (
 	"fmt"
-	goUrl "net/url"
 	"strings"
 	"unicode"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
@@ -59,7 +60,7 @@ type SassParser struct {
 // indentation.
 //
 // Matches Dart: SassParser constructor in lib/src/parse/sass.dart
-func NewSassParser(contents []byte, url *goUrl.URL, parseSelectors bool) *SassParser {
+func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *SassParser {
 	p := &SassParser{}
 	p.Parser = *NewParser(contents, url, nil)
 	p.StylesheetParser.parseSelectors = parseSelectors
@@ -628,7 +629,7 @@ func (p *SassParser) sassImportArgument() (Import, error) {
 	}
 
 	parsedURL := p.parseImportUrl(url)
-	_, parseErr := goUrl.Parse(parsedURL)
+	_, parseErr := sassurl.Parse(parsedURL)
 	if parseErr != nil {
 		if err := p.error("Invalid URL: "+parseErr.Error(), span, nil); err != nil {
 			return nil, err

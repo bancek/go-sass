@@ -54,11 +54,17 @@ locking the new behavior. Tests assert **exact** type/message/span (never bare
 the code under test (see `patterns.md` §8 and `critical-invariants.md` Test
 standards).
 
-Tests live inline in the package's `_test.go` files. Fixture files
+Tests live inline in the package's `_test.go` files. Small fixture files
 (`test/fixtures/...`, external golden files, or table data stored outside Go
 source) are an **antipattern**: they hide the input, expectation, and
 assertion from the test and make reviews noisy. Use inline table-driven
 tests; convert an existing fixture-based test when you touch it.
+
+The exception is a large, auto-generated conformance suite where the data is
+the test — for example `sassurl/fixtures/`, which holds thousands of Dart Uri
+vectors. Check those in with their generator metadata (`fixtures/meta.json`)
+and a dedicated fixture test; they are not a substitute for inline
+regression tests.
 
 ```sh
 go build ./... && go vet ./...

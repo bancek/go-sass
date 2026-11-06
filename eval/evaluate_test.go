@@ -438,6 +438,14 @@ func TestDefaultNamespaceMultipleExtensions(t *testing.T) {
 	}
 }
 
+func TestDefaultNamespaceDecodesPercentEscapes(t *testing.T) {
+	u, _ := sassurl.Parse("file:///home/user/dep%20file.scss")
+	got := defaultNamespace(u)
+	if got != "dep file" {
+		t.Errorf("defaultNamespace = %q, want %q", got, "dep file")
+	}
+}
+
 // ===========================================================================
 // verifyParameterList() tests
 // ===========================================================================

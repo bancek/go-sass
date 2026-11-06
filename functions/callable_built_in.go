@@ -10,7 +10,8 @@ package functions
 
 import (
 	"fmt"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/evalcontext"
 	"github.com/bancek/go-sass/sasscallable"
@@ -120,9 +121,9 @@ func NewBuiltInCallableOverloaded(name string, overloads []BuiltInCallableOverlo
 //
 // Matches Dart: BuiltInCallable.mixin
 func NewBuiltInCallableMixin(name string, parameters string, fn func([]value.Value), urlStr string, acceptsContent bool) (sasscallable.Callable, error) {
-	var parsedURL *url.URL
+	var parsedURL *sassurl.URL
 	if urlStr != "" {
-		parsedURL, _ = url.Parse(urlStr)
+		parsedURL, _ = sassurl.Parse(urlStr)
 	}
 	contents := fmt.Sprintf("@mixin %s(%s) {", name, parameters)
 	params, err := value.ParseParameterList(contents, parsedURL)
@@ -324,7 +325,7 @@ func matchesSignatureExact(params *value.ParameterList, positional int, names ma
 //
 // Matches Dart: BuiltInCallable.function
 func NewBuiltInCallableFunction(name, parameters, urlStr string, fn sasscallable.CallableFn) (*BuiltInCallable, error) {
-	parsedURL, _ := url.Parse(urlStr)
+	parsedURL, _ := sassurl.Parse(urlStr)
 	contents := fmt.Sprintf("@function %s(%s) {", name, parameters)
 	params, err := value.ParseParameterList(contents, parsedURL)
 	if err != nil {
@@ -352,7 +353,7 @@ type OverloadDef struct {
 //
 // Matches Dart: BuiltInCallable.overloadedFunction
 func NewBuiltInCallableOverloadedFunction(name, urlStr string, overloads ...OverloadDef) (*BuiltInCallable, error) {
-	parsedURL, _ := url.Parse(urlStr)
+	parsedURL, _ := sassurl.Parse(urlStr)
 	result := make([]BuiltInCallableOverload, 0, len(overloads))
 	for _, o := range overloads {
 		contents := fmt.Sprintf("@function %s(%s) {", name, o.Params)

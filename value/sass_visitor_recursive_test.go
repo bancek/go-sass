@@ -5,8 +5,9 @@
 package value
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -240,7 +241,7 @@ func TestRecursiveStatementLeafNodes(t *testing.T) {
 		{"LoudComment", NewLoudComment(NewInterpolationPlain("/* */", span))},
 		{"SilentComment", NewSilentComment("//", span)},
 		{"UseRule", &UseRule{span: span}},
-		{"ForwardRule", &ForwardRule{span: span, url: &url.URL{Scheme: "sass", Opaque: "test"}}},
+		{"ForwardRule", &ForwardRule{span: span, url: &sassurl.URL{Scheme: "sass", Path: "test"}}},
 		{"VariableDeclaration", mustVarDecl("x", expr, span)},
 	}
 
@@ -683,7 +684,7 @@ func TestRecursiveAstInterpolatedCompoundSelector(t *testing.T) {
 func TestRecursiveAstForwardRuleConfiguration(t *testing.T) {
 	v := &RecursiveAstVisitor{}
 	span := visitorSpan("@forward 'foo' with ($x: 1)", 0, 27)
-	u := &url.URL{Scheme: "sass", Opaque: "foo"}
+	u := &sassurl.URL{Scheme: "sass", Path: "foo"}
 	expr := NewNumberExpression(1, visitorSpan("1", 23, 24), nil)
 	cv := NewConfiguredVariable("x", expr, span, false)
 	fr := NewForwardRule(u, span, nil, []*ConfiguredVariable{cv})
@@ -696,7 +697,7 @@ func TestRecursiveAstForwardRuleConfiguration(t *testing.T) {
 func TestRecursiveAstUseRuleConfiguration(t *testing.T) {
 	v := &RecursiveAstVisitor{}
 	span := visitorSpan("@use 'foo' with ($x: 1)", 0, 23)
-	u, err := url.Parse("sass:foo")
+	u, err := sassurl.Parse("sass:foo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -999,8 +1000,8 @@ func TestStatementSearchIncludeNoContent(t *testing.T) {
 // FindDependencies tests
 // =============================================================================
 
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
+func mustParseURL(raw string) *sassurl.URL {
+	u, err := sassurl.Parse(raw)
 	if err != nil {
 		panic("bad URL in test: " + raw)
 	}

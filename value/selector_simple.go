@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/ast/selector/simple.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasslogger"
 )
@@ -39,7 +39,7 @@ type SimpleSelector interface {
 // non-nil it names the file contents came from; allowParent controls whether
 // a parent selector is accepted; logger receives deprecation warnings and may
 // be nil to use the default logger. It returns an error when parsing fails.
-func ParseSimpleSelector(contents string, url *url.URL, allowParent bool, logger sasslogger.Logger) (SimpleSelector, error) {
+func ParseSimpleSelector(contents string, url *sassurl.URL, allowParent bool, logger sasslogger.Logger) (SimpleSelector, error) {
 	opts := &SelectorParserOptions{
 		AllowParent: &allowParent,
 		Logger:      logger,

@@ -35,6 +35,7 @@ the tracked commit (dart-sass carries no committed lockfile).
 | `sourcemap/vlq.go`                                                                                                                                                                  | `source_maps`          | 0.10.13         |
 | `sasscommon/pretty_uri.go`                                                                                                                                                          | `path`                 | 1.9.1           |
 | `sasscommon/core_errors.go`                                                                                                                                                         | Dart SDK (`dart:core`) | Dart `>=3.13.0` |
+| `sassurl/url.go`, `data.go`, `file_path.go`, `ip.go`, `tables.go`                                                                                                                   | Dart SDK (`dart:core` Uri) + `path` | Dart 3.13.5 / 1.9.1 |
 
 When syncing (`porting.md`), re-port any file whose package range changed in
 dart-sass's `pubspec.yaml`, and copy the package's actual header from the

@@ -7,7 +7,7 @@
 package value
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -39,7 +39,7 @@ func NewCssStylesheet(children []CssNode, span sasscommon.FileSpan) *CssStyleshe
 // NewCssStylesheetEmpty creates an empty stylesheet with the given source URL.
 //
 // Matches Dart: CssStylesheet.empty({Object? url})
-func NewCssStylesheetEmpty(sourceURL *url.URL) *CssStylesheet {
+func NewCssStylesheetEmpty(sourceURL *sassurl.URL) *CssStylesheet {
 	file := sasscommon.NewFileSource([]byte{}, sourceURL)
 	return &CssStylesheet{
 		node:     CssNodeBase{span: sasscommon.NewFileSpan(file, 0, 0)},

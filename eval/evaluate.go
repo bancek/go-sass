@@ -12,8 +12,9 @@ package eval
 
 import (
 	"errors"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/configuration"
 	"github.com/bancek/go-sass/deprecation"
@@ -174,7 +175,7 @@ type EvaluateVisitor struct {
 	// loads in Node.js compatibility mode.
 	nodeImporter *NodePackageImporter
 	// sourceURL is the canonical URL of the entrypoint stylesheet.
-	sourceURL *url.URL
+	sourceURL *sassurl.URL
 	// loadedUrls accumulates the canonical URLs of all stylesheets loaded
 	// during compilation for error reporting.
 	loadedUrls *orderedset.LinkedSet[string]

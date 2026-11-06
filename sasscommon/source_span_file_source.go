@@ -9,8 +9,9 @@ package sasscommon
 // dart-source: (external) package:source_span/lib/src/file.dart
 
 import (
-	"net/url"
 	"unicode/utf8"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // FileSource represents a source file, matching Dart's SourceFile.
@@ -34,7 +35,7 @@ import (
 //   - Offsets and Length count bytes, not characters. Dart's length counts
 //     characters; user-facing columns convert via CharacterColumn.
 type FileSource struct {
-	url        *url.URL
+	url        *sassurl.URL
 	raw        []byte
 	text       string
 	textReady  bool
@@ -48,7 +49,7 @@ type FileSource struct {
 // return not followed by a line feed counts as a newline, matching Dart's
 // normalization in _fromList. A nil sourceURL marks the URL unknown,
 // matching Dart's nullable url.
-func NewFileSource(raw []byte, sourceURL *url.URL) *FileSource {
+func NewFileSource(raw []byte, sourceURL *sassurl.URL) *FileSource {
 	lineStarts := []int{0}
 	for i, b := range raw {
 		if b == '\n' {
@@ -71,7 +72,7 @@ func NewFileSource(raw []byte, sourceURL *url.URL) *FileSource {
 //
 // Matches Dart: SourceFile.url (file.dart). May be nil, indicating that the
 // URL is unknown or unavailable.
-func (f *FileSource) URL() *url.URL { return f.url }
+func (f *FileSource) URL() *sassurl.URL { return f.url }
 
 // Text returns the full source as a string, caching the conversion.
 //

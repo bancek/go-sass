@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/ast/sass/dependency.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -21,7 +21,7 @@ import (
 // through the unexported isSassDependency marker instead).
 type SassDependency interface {
 	SassNode
-	URL() *url.URL
+	URL() *sassurl.URL
 	URLSpan() (sasscommon.FileSpan, error)
 	isSassDependency()
 }

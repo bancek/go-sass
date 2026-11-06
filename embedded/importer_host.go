@@ -10,9 +10,10 @@ package embedded
 
 import (
 	"fmt"
-	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"google.golang.org/protobuf/proto"
 
@@ -72,7 +73,7 @@ func NewHostImporter(dispatcher *CompilationDispatcher, importerID uint32, nonCa
 // nil) so the next importer may try.
 //
 // Matches Dart: HostImporter.canonicalize in importer/host.dart.
-func (h *HostImporter) Canonicalize(u *url.URL, ctx *eval.CanonicalizeContext) (*url.URL, error) {
+func (h *HostImporter) Canonicalize(u *sassurl.URL, ctx *eval.CanonicalizeContext) (*sassurl.URL, error) {
 	request := &OutboundMessage_CanonicalizeRequest{
 		Id:         outboundRequestID,
 		ImporterId: h.importerID,
@@ -111,7 +112,7 @@ func (h *HostImporter) Canonicalize(u *url.URL, ctx *eval.CanonicalizeContext) (
 // continue.
 //
 // Matches Dart: HostImporter.load in importer/host.dart.
-func (h *HostImporter) Load(canonicalURL *url.URL) (*eval.ImporterResult, error) {
+func (h *HostImporter) Load(canonicalURL *sassurl.URL) (*eval.ImporterResult, error) {
 	response, err := h.base.Dispatcher.sendImportRequest(
 		&OutboundMessage_ImportRequest{
 			Id:         outboundRequestID,
@@ -125,7 +126,7 @@ func (h *HostImporter) Load(canonicalURL *url.URL) (*eval.ImporterResult, error)
 	switch response.GetResult().(type) {
 	case *InboundMessage_ImportResponse_Success:
 		success := response.GetSuccess()
-		var sourceMapURL *url.URL
+		var sourceMapURL *sassurl.URL
 		if smURL := success.GetSourceMapUrl(); smURL != "" {
 			var parseErr error
 			sourceMapURL, parseErr = h.base.ParseAbsoluteURL("The importer", smURL)
@@ -148,7 +149,7 @@ func (h *HostImporter) Load(canonicalURL *url.URL) (*eval.ImporterResult, error)
 // CouldCanonicalize always returns false: a host importer cannot answer
 // whether it could canonicalize a URL without a host round-trip, so the
 // import cache never pre-checks it and always calls Canonicalize.
-func (h *HostImporter) CouldCanonicalize(u, canonicalURL *url.URL) bool {
+func (h *HostImporter) CouldCanonicalize(u, canonicalURL *sassurl.URL) bool {
 	return false
 }
 
@@ -165,7 +166,7 @@ func (h *HostImporter) IsNonCanonicalScheme(scheme string) bool {
 // ModificationTime returns the current time: host-provided stylesheets have
 // no observable filesystem mtime, so callers treat them as always fresh and
 // never cache on modification time.
-func (h *HostImporter) ModificationTime(canonicalURL *url.URL) (time.Time, error) {
+func (h *HostImporter) ModificationTime(canonicalURL *sassurl.URL) (time.Time, error) {
 	return time.Now(), nil
 }
 

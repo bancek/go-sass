@@ -8,7 +8,7 @@ package value
 
 // dart-source: lib/src/ast/sass/expression.dart
 
-import goUrl "net/url"
+import "github.com/bancek/go-sass/sassurl"
 
 // Expression is a SassScript expression in a Sass syntax tree, implemented
 // by the 18 expression structs in sass_expression_*.go.
@@ -60,7 +60,7 @@ type Expression interface {
 // failure returns a SassFormatException.
 //
 // Matches Dart: Expression.parse factory constructor
-func ParseExpression(contents string, url *goUrl.URL) (Expression, error) {
+func ParseExpression(contents string, url *sassurl.URL) (Expression, error) {
 	parser := NewScssParser([]byte(contents), url, false)
 	expr, _, err := parser.parseExpression()
 	if err != nil {

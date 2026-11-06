@@ -11,9 +11,10 @@ package value
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"unicode"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
@@ -35,7 +36,7 @@ type Parser struct {
 }
 
 // NewParser creates a new parser for the given contents.
-func NewParser(contents []byte, url *url.URL, interpolationMap *InterpolationMap) *Parser {
+func NewParser(contents []byte, url *sassurl.URL, interpolationMap *InterpolationMap) *Parser {
 	return &Parser{
 		scanner:          sasscommon.NewSpanScanner(contents, url),
 		interpolationMap: interpolationMap,

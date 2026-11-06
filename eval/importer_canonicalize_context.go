@@ -7,7 +7,7 @@
 package eval
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // dart-source: lib/src/importer/canonicalize_context.dart
@@ -26,7 +26,7 @@ type CanonicalizeContext struct {
 	// populated when the containing stylesheet has a canonical URL and the
 	// load URL is relative or uses a non-canonical scheme, so canonical URLs
 	// keep one meaning regardless of load site.
-	containingURL *url.URL
+	containingURL *sassurl.URL
 
 	// Whether ContainingURL has been read. A read marks the in-flight
 	// canonicalization as context-sensitive, which tells the import cache not
@@ -36,7 +36,7 @@ type CanonicalizeContext struct {
 
 // NewCanonicalizeContext creates a CanonicalizeContext for a load from
 // containingURL, recording whether the load runs under an @import rule.
-func NewCanonicalizeContext(containingURL *url.URL, fromImport bool) *CanonicalizeContext {
+func NewCanonicalizeContext(containingURL *sassurl.URL, fromImport bool) *CanonicalizeContext {
 	return &CanonicalizeContext{
 		containingURL: containingURL,
 		FromImport:    fromImport,
@@ -48,7 +48,7 @@ func NewCanonicalizeContext(containingURL *url.URL, fromImport bool) *Canonicali
 // This marks the containing URL as accessed, which is used to determine whether
 // the canonicalize result is cacheable: once read, the result is treated as
 // load-site specific and is no longer shared across the whole importer chain.
-func (ctx *CanonicalizeContext) ContainingURL() *url.URL {
+func (ctx *CanonicalizeContext) ContainingURL() *sassurl.URL {
 	ctx.wasContainingURLAccessed = true
 	return ctx.containingURL
 }
@@ -65,7 +65,7 @@ func (ctx *CanonicalizeContext) WasContainingURLAccessed() bool {
 //
 // Internal checks that must not affect cacheability use this; importer logic
 // that genuinely depends on the load site reads ContainingURL instead.
-func (ctx *CanonicalizeContext) ContainingURLWithoutMarking() *url.URL {
+func (ctx *CanonicalizeContext) ContainingURLWithoutMarking() *sassurl.URL {
 	return ctx.containingURL
 }
 

@@ -2,16 +2,17 @@ package sourcemapbuffer
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sourcemap"
 )
 
 func testFileSpan(urlStr string) sasscommon.FileSpan {
-	u, _ := url.Parse(urlStr)
+	u, _ := sassurl.Parse(urlStr)
 	fs := sasscommon.NewFileSource([]byte("body { color: red; }"), u)
 	return sasscommon.NewSimpleFileSpan(fs, 0, 0)
 }

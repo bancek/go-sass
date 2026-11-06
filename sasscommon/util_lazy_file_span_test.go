@@ -1,8 +1,9 @@
 package sasscommon
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // --- Lazy creation ---
@@ -125,7 +126,7 @@ func TestLazyFileSpanLength(t *testing.T) {
 // --- Delegation: FileSpan methods ---
 
 func TestLazyFileSpanSourceURL(t *testing.T) {
-	u := &url.URL{Scheme: "file", Path: "/test.scss"}
+	u := &sassurl.URL{Scheme: "file", HasAuthority: true, Path: "/test.scss"}
 	fs := NewFileSource([]byte("a"), u)
 	l := NewLazyFileSpan(func() (FileSpan, error) {
 		return NewSimpleFileSpan(fs, 0, 1), nil

@@ -12,8 +12,9 @@ package value
 
 import (
 	"fmt"
-	goUrl "net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/orderedset"
@@ -1047,7 +1048,7 @@ func (p *StylesheetParser) importArgument() (Import, error) {
 	// Matches Dart: DynamicImport(parseImportUrl(url), urlSpan) — the URL is
 	// passed through unchanged; Uri.parse(url) only validates (throwing a
 	// FormatException caught as "Invalid URL").
-	if _, err := goUrl.Parse(url); err != nil {
+	if _, err := sassurl.Parse(url); err != nil {
 		if pErr := p.error("Invalid URL: "+err.Error(), urlSpan, nil); pErr != nil {
 			return nil, pErr
 		}
@@ -1643,7 +1644,7 @@ func (p *StylesheetParser) useRule(start sasscommon.LineScannerState) (*UseRule,
 // from the URL's last path segment with a leading `_` stripped and the file
 // extension dropped. start points before the `@` for the error span when the
 // default is not a valid identifier. A nil return means `@use ... as *`.
-func (p *StylesheetParser) useNamespace(u *goUrl.URL, start sasscommon.LineScannerState) (*string, error) {
+func (p *StylesheetParser) useNamespace(u *sassurl.URL, start sasscommon.LineScannerState) (*string, error) {
 	ok, err := p.scanIdentifier("as", false)
 	if err != nil {
 		return nil, err
@@ -1662,9 +1663,10 @@ func (p *StylesheetParser) useNamespace(u *goUrl.URL, start sasscommon.LineScann
 		return &s, nil
 	}
 
-	basename := u.Path
-	if idx := strings.LastIndex(u.Path, "/"); idx >= 0 {
-		basename = u.Path[idx+1:]
+	urlPath := sassurl.DecodeRelativePath(u.Path)
+	basename := urlPath
+	if idx := strings.LastIndex(urlPath, "/"); idx >= 0 {
+		basename = urlPath[idx+1:]
 	}
 	basename = strings.TrimPrefix(basename, "_")
 	if dot := strings.Index(basename, "."); dot >= 0 {

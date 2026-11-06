@@ -1,9 +1,10 @@
 package sasscommon
 
 import (
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/termglyph"
 )
@@ -12,8 +13,8 @@ func sscLoc(offset, line, column int) SourceLocation {
 	return SourceLocation{Offset: offset, Line: line, Column: column}
 }
 
-func sscURL(s string) *url.URL {
-	u, _ := url.Parse(s)
+func sscURL(s string) *sassurl.URL {
+	u, _ := sassurl.Parse(s)
 	return u
 }
 

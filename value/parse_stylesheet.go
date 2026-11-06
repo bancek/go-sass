@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/parse/stylesheet.dart (StylesheetParser base class)
 
 import (
-	goUrl "net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -66,7 +66,7 @@ type StylesheetParser struct {
 // interpolation; interpolationMap threads through so errors inside
 // interpolation point back at the interpolation site. Use of @use-family
 // rules is allowed until the parser consumes a rule that forbids them.
-func NewStylesheetParser(contents []byte, url *goUrl.URL, parseSelectors bool, interpolationMap *InterpolationMap) *StylesheetParser {
+func NewStylesheetParser(contents []byte, url *sassurl.URL, parseSelectors bool, interpolationMap *InterpolationMap) *StylesheetParser {
 	return &StylesheetParser{
 		Parser:          *NewParser(contents, url, interpolationMap),
 		parseSelectors:  parseSelectors,

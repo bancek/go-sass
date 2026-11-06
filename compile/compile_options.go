@@ -9,7 +9,7 @@ package compile
 // dart-source: lib/src/compile.dart (CompileOptions maps to compile/compileString parameters)
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/eval"
@@ -52,7 +52,7 @@ type CompileOptions struct {
 
 	// URL is the URL of the source stylesheet. If nil, the stylesheet is treated
 	// as having no URL and relative imports will not resolve.
-	URL *url.URL
+	URL *sassurl.URL
 
 	// PackageConfig resolves package: URLs to file: URLs. If nil, package:
 	// imports are not supported.

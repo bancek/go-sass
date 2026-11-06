@@ -9,7 +9,7 @@ package sassmodule
 // dart-source: lib/src/module.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/extend"
 	"github.com/bancek/go-sass/orderedmap"
@@ -138,7 +138,7 @@ func (m *BuiltInModule) ExtensionStore() extend.ExtensionStore { return &extend.
 // CSS is always an empty stylesheet at the module's sass: URL: built-ins
 // contribute members only, never CSS.
 func (m *BuiltInModule) CSS() (*value.CssStylesheet, error) {
-	parsed, err := url.Parse(m.url)
+	parsed, err := sassurl.Parse(m.url)
 	if err != nil {
 		return nil, err
 	}

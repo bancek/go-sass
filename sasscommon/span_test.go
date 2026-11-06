@@ -1,16 +1,17 @@
 package sasscommon
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 func testFileSource(text string) *FileSource {
 	return NewFileSource([]byte(text), nil)
 }
 
-func testURL(s string) *url.URL {
-	u, _ := url.Parse(s)
+func testURL(s string) *sassurl.URL {
+	u, _ := sassurl.Parse(s)
 	return u
 }
 
@@ -245,8 +246,8 @@ func TestBefore(t *testing.T) {
 }
 
 func TestBeforeDifferentFile(t *testing.T) {
-	u1, _ := url.Parse("file:///a.scss")
-	u2, _ := url.Parse("file:///b.scss")
+	u1, _ := sassurl.Parse("file:///a.scss")
+	u2, _ := sassurl.Parse("file:///b.scss")
 	fs1 := NewFileSource([]byte("abcdefghij"), u1)
 	fs2 := NewFileSource([]byte("x"), u2)
 	parent := NewSimpleFileSpan(fs1, 0, 10)
@@ -365,8 +366,8 @@ func TestContains(t *testing.T) {
 }
 
 func TestContainsDifferentFile(t *testing.T) {
-	u1, _ := url.Parse("file:///f.scss")
-	u2, _ := url.Parse("file:///g.scss")
+	u1, _ := sassurl.Parse("file:///f.scss")
+	u2, _ := sassurl.Parse("file:///g.scss")
 	fs1 := NewFileSource([]byte("abcdefghij"), u1)
 	fs2 := NewFileSource([]byte("cde"), u2)
 	parent := NewSimpleFileSpan(fs1, 0, 10)

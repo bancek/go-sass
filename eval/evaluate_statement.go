@@ -10,7 +10,6 @@ package eval
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/bancek/go-sass/box"
@@ -738,7 +737,7 @@ func (v *EvaluateVisitor) VisitStyleRule(stmt *value.StyleRule) (value.Value, er
 // Matches Dart: _EvaluateVisitor._loadModule (evaluate.dart module-loading
 // section); baseURL defaults to the current stylesheet URL and namesInErrors
 // controls whether module names appear in loop/configure errors.
-func (v *EvaluateVisitor) loadModule(url *url.URL, stackFrame string, nodeWithSpan sasscommon.AstNode, configuration *configuration.Configuration, namesInErrors bool, baseURL *url.URL, callback func(sassmodule.Module, bool) error) error {
+func (v *EvaluateVisitor) loadModule(url *sassurl.URL, stackFrame string, nodeWithSpan sasscommon.AstNode, configuration *configuration.Configuration, namesInErrors bool, baseURL *sassurl.URL, callback func(sassmodule.Module, bool) error) error {
 	if builtIn, ok := v.builtInModules[url.String()]; ok {
 		if configuration != nil && configuration.IsExplicit() {
 			var message string
@@ -1063,7 +1062,7 @@ type loadedStylesheet struct {
 // Matches Dart: _EvaluateVisitor._loadStylesheet (evaluate.dart loading
 // section); SassException values rethrow while other errors are wrapped with
 // a trace at the call span.
-func (v *EvaluateVisitor) loadStylesheet(parsedURL *url.URL, span sasscommon.FileSpan, baseURL *url.URL, forImport bool) (*loadedStylesheet, error) {
+func (v *EvaluateVisitor) loadStylesheet(parsedURL *sassurl.URL, span sasscommon.FileSpan, baseURL *sassurl.URL, forImport bool) (*loadedStylesheet, error) {
 	v.ec.SetImportSpan(span)
 	defer v.ec.SetImportSpan(sasscommon.SimpleFileSpan{})
 
@@ -1236,7 +1235,7 @@ func (v *EvaluateVisitor) registerCommentsForModule(module sassmodule.Module) {
 // Matches Dart: _EvaluateVisitor._importLikeNode (evaluate.dart loading
 // section); the two-step relative-then-absolute load collapses here into a
 // single Load call with the original URL text.
-func (v *EvaluateVisitor) importLikeNode(originalURL string, previous *url.URL, forImport bool) (*loadedStylesheet, error) {
+func (v *EvaluateVisitor) importLikeNode(originalURL string, previous *sassurl.URL, forImport bool) (*loadedStylesheet, error) {
 	// Unparseable URLs simply miss; the caller falls through to the
 	// missing-stylesheet error.
 	parsedURL, parseErr := sassurl.Parse(originalURL)

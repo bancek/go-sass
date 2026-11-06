@@ -68,7 +68,7 @@ See `parse.md`.
 // sasscommon/source_span_file.go
 type FileSpan interface {
     Span
-    SourceURL() (*url.URL, error)
+    SourceURL() (*sassurl.URL, error)
     File() (*FileSource, error)
     Context() (string, error)   // surrounding source, trimmed
     // … offsets, text, highlighting

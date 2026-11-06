@@ -10,7 +10,8 @@ package sasscommon
 
 import (
 	"fmt"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // BogusSpan is a span that points nowhere: an empty span in an empty,
@@ -174,7 +175,7 @@ func (s SimpleFileSpan) Contains(target FileSpan) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	var sourceURL *url.URL
+	var sourceURL *sassurl.URL
 	if s.file != nil {
 		sourceURL = s.file.URL()
 	}

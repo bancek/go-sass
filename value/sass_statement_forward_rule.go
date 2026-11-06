@@ -9,8 +9,9 @@ package value
 // dart-source: lib/src/ast/sass/statement/forward_rule.dart
 
 import (
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/orderedset"
 	"github.com/bancek/go-sass/sasscommon"
@@ -22,7 +23,7 @@ import (
 // or hidden subset, renamed with a prefix, and reconfigured with variable
 // assignments.
 type ForwardRule struct {
-	url *url.URL
+	url *sassurl.URL
 	// ShownMixinsAndFunctions lists the mixin/function names allowed through.
 	// Nil means no show restriction; when non-nil, the hidden sets are nil
 	// and ShownVariables is non-nil.
@@ -55,7 +56,7 @@ func copyConfiguration(configuration []*ConfiguredVariable) []*ConfiguredVariabl
 
 // NewForwardRule creates a @forward rule exposing every member of the
 // module at u, with an optional name prefix and configuration.
-func NewForwardRule(u *url.URL, span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
+func NewForwardRule(u *sassurl.URL, span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
 	return &ForwardRule{
 		url:           u,
 		span:          span,
@@ -66,7 +67,7 @@ func NewForwardRule(u *url.URL, span sasscommon.FileSpan, prefix *string, config
 
 // NewForwardRuleShow creates a @forward rule exposing only the shown mixin,
 // function, and variable names.
-func NewForwardRuleShow(u *url.URL, shownMixinsAndFunctions, shownVariables *orderedset.LinkedSet[string], span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
+func NewForwardRuleShow(u *sassurl.URL, shownMixinsAndFunctions, shownVariables *orderedset.LinkedSet[string], span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
 	if shownMixinsAndFunctions == nil {
 		shownMixinsAndFunctions = orderedset.New[string]()
 	}
@@ -85,7 +86,7 @@ func NewForwardRuleShow(u *url.URL, shownMixinsAndFunctions, shownVariables *ord
 
 // NewForwardRuleHide creates a @forward rule exposing every member except
 // the hidden mixin, function, and variable names.
-func NewForwardRuleHide(u *url.URL, hiddenMixinsAndFunctions, hiddenVariables *orderedset.LinkedSet[string], span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
+func NewForwardRuleHide(u *sassurl.URL, hiddenMixinsAndFunctions, hiddenVariables *orderedset.LinkedSet[string], span sasscommon.FileSpan, prefix *string, configuration []*ConfiguredVariable) *ForwardRule {
 	if hiddenMixinsAndFunctions == nil {
 		hiddenMixinsAndFunctions = orderedset.New[string]()
 	}
@@ -103,7 +104,7 @@ func NewForwardRuleHide(u *url.URL, hiddenMixinsAndFunctions, hiddenVariables *o
 }
 
 // URL returns the URI of the forwarded module.
-func (r *ForwardRule) URL() *url.URL { return r.url }
+func (r *ForwardRule) URL() *sassurl.URL { return r.url }
 
 // URLSpan returns the span of the URL in this @forward rule.
 //

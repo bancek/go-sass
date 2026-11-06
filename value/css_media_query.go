@@ -10,9 +10,10 @@ package value
 
 import (
 	"errors"
-	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // CssMediaQuery represents a plain CSS media query, as used in @media and @import.
@@ -409,7 +410,7 @@ func (m *MediaQuerySuccessfulMergeResult) String() string {
 // If passed, url is the name of the file from which contents comes.
 //
 // Matches Dart: CssMediaQuery.parseList
-func ParseList(contents string, url *url.URL, interpolationMap *InterpolationMap) ([]*CssMediaQuery, error) {
+func ParseList(contents string, url *sassurl.URL, interpolationMap *InterpolationMap) ([]*CssMediaQuery, error) {
 	p := NewParser([]byte(contents), url, interpolationMap)
 	return (&CssMediaQueryParser{Parser: *p}).Parse()
 }

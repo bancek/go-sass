@@ -78,7 +78,7 @@ source. They are a live, maintained part of the code — not archaeology.
 | `operator ==`                       | `Equal()` method (never `==`, never `reflect.DeepEqual`)        |
 | `get hashCode`                      | cached `*int` hash where Dart caches (perf parity)              |
 | `toString()`                        | `String() string`                                               |
-| `Uri`                               | `*url.URL` from `net/url`                                       |
+| `Uri`                               | `*sassurl.URL` (Dart-compatible URI, not `net/url`)             |
 | `StringBuffer`                      | `strings.Builder` (`WriteRune`, not `WriteByte`, for non-ASCII) |
 | `Box<T>` / `ModifiableBox<T>`       | `box.Box[T]` / `box.ModifiableBox[T]`                           |
 
@@ -182,10 +182,15 @@ message or type. Tests match on the exception type and message text.
 
 ### Inline tests, not fixtures
 
-Fixture files are an antipattern. Keep inputs, expected values, and
-assertions together in an inline table-driven test in the package's
-`_test.go` file. Do not add new `test/fixtures/...` or other external golden
-files; convert an existing fixture-based test when you touch it.
+Fixture files are an antipattern for ordinary unit tests. Keep inputs,
+expected values, and assertions together in an inline table-driven test in
+the package's `_test.go` file; convert an existing fixture-based test when
+you touch it.
+
+The exception is a large, auto-generated conformance suite where the data is
+the test (for example `sassurl/fixtures/`). Keep its generator metadata
+(`fixtures/meta.json`) and a dedicated fixture test, and still add inline
+regression tests for specific bugs.
 
 ### Golden values
 

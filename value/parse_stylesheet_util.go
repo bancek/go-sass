@@ -10,8 +10,6 @@ package value
 // _withChildren, _urlString, _publicIdentifier, _assertPublic, _addOrInject)
 
 import (
-	goUrl "net/url"
-
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sassurl"
 	"github.com/bancek/go-sass/util"
@@ -124,7 +122,7 @@ func withChildren[T any](p *StylesheetParser, child func() (Statement, error), s
 
 // urlString consumes a quoted string holding a valid URL. A parse failure
 // reports "Invalid URL: ..." over the span from the opening quote.
-func (p *StylesheetParser) urlString() (*goUrl.URL, error) {
+func (p *StylesheetParser) urlString() (*sassurl.URL, error) {
 	start := p.scanner.State()
 	urlStr, err := p.string()
 	if err != nil {

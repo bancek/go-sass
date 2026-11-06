@@ -10,8 +10,9 @@ package value
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -305,7 +306,7 @@ func (e *BinaryOperationExpression) OperatorSpan() (sasscommon.FileSpan, error) 
 
 // sameSourceURL reports whether two operand spans come from the same source,
 // treating two nil URLs as the same file.
-func sameSourceURL(a, b *url.URL) bool {
+func sameSourceURL(a, b *sassurl.URL) bool {
 	if a == nil && b == nil {
 		return true
 	}

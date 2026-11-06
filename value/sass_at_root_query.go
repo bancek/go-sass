@@ -10,8 +10,9 @@ package value
 
 import (
 	"maps"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // AtRootQuery selects which enclosing rules an @at-root block bubbles
@@ -31,7 +32,7 @@ type AtRootQuery struct {
 // ParseAtRootQuery parses an at-root query from contents.
 //
 // Matches Dart: AtRootQuery.parse
-func ParseAtRootQuery(contents string, url *url.URL, interpolationMap *InterpolationMap) (*AtRootQuery, error) {
+func ParseAtRootQuery(contents string, url *sassurl.URL, interpolationMap *InterpolationMap) (*AtRootQuery, error) {
 	p := &AtRootQueryParser{Parser: *NewParser([]byte(contents), url, interpolationMap)}
 	return p.Parse()
 }

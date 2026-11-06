@@ -9,8 +9,9 @@ package value
 // dart-source: lib/src/parse/stylesheet.dart (parseImportUrl section)
 
 import (
-	goUrl "net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/util"
 )
@@ -42,10 +43,11 @@ func ParseImportUrl(rawURL string) string {
 				host = before
 				path = "/" + after
 			}
-			u := &goUrl.URL{
-				Scheme: "file",
-				Host:   host,
-				Path:   path,
+			u := &sassurl.URL{
+				Scheme:       "file",
+				HasAuthority: true,
+				Host:         host,
+				Path:         path,
 			}
 			return u.String()
 		}

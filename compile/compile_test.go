@@ -30,6 +30,25 @@ func TestCompileRepeatedUseComments(t *testing.T) {
 	}
 }
 
+func TestCompileImportWithSpace(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "_a b.scss"), []byte("$c: red;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := CompileString("@use \"a b\" as *;\nx { color: $c; }\n", sassio.NewDefaultIO(), &CompileOptions{
+		LoadPaths: []string{dir},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "x {\n  color: red;\n}"
+	if got := result.CSS(); got != want {
+		t.Errorf("CSS mismatch\nwant:\n%s\ngot:\n%s", want, got)
+	}
+}
+
 func TestCompileBasic(t *testing.T) {
 	result, err := CompileString(`a { color: red; }`, sassio.NewDefaultIO(), nil)
 	if err != nil {

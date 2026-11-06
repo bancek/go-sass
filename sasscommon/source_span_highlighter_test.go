@@ -1,9 +1,10 @@
 package sasscommon
 
 import (
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/termglyph"
 )
@@ -236,7 +237,7 @@ func TestHighlightTabsWithinSpan(t *testing.T) {
 // --- Multiple spans (same URL, grouped together) ---
 
 func TestHighlightMultipleSeparate(t *testing.T) {
-	u, _ := url.Parse("file1.txt")
+	u, _ := sassurl.Parse("file1.txt")
 	ssc1, _ := NewSourceSpanWithContext(
 		SourceLocation{Offset: 17, Line: 1, Column: 5},
 		SourceLocation{Offset: 21, Line: 1, Column: 9},
@@ -312,7 +313,7 @@ func TestHighlightMultipleDifferentSources(t *testing.T) {
 // --- Multiple spans from same file URL ---
 
 func TestHighlightMultipleSameFileURL(t *testing.T) {
-	u, _ := url.Parse("file1.txt")
+	u, _ := sassurl.Parse("file1.txt")
 	ssc1, _ := NewSourceSpanWithContext(
 		SourceLocation{Offset: 17, Line: 1, Column: 5},
 		SourceLocation{Offset: 21, Line: 1, Column: 9},

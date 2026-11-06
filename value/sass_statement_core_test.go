@@ -1,9 +1,10 @@
 package value
 
 import (
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -263,7 +264,7 @@ func TestStyleRuleString(t *testing.T) {
 // --- UseRule ---
 
 func TestUseRuleConstruction(t *testing.T) {
-	u, _ := url.Parse("https://example.com/module")
+	u, _ := sassurl.Parse("https://example.com/module")
 	span := supportSpan("@use 'mod';", 0, 10)
 	ur, err := NewUseRule(u, nil, span, nil)
 	if err != nil {
@@ -275,7 +276,7 @@ func TestUseRuleConstruction(t *testing.T) {
 }
 
 func TestUseRuleString(t *testing.T) {
-	u, _ := url.Parse("https://example.com/module")
+	u, _ := sassurl.Parse("https://example.com/module")
 	span := supportSpan("@use 'mod';", 0, 10)
 	ur, err := NewUseRule(u, nil, span, nil)
 	if err != nil {
@@ -291,7 +292,7 @@ func TestUseRuleString(t *testing.T) {
 }
 
 func TestUseRuleGuardedConfig(t *testing.T) {
-	u, _ := url.Parse("https://example.com/module")
+	u, _ := sassurl.Parse("https://example.com/module")
 	span := supportSpan("@use 'mod';", 0, 10)
 	cfg := NewConfiguredVariable("x", nil, span, true)
 	_, err := NewUseRule(u, nil, span, []*ConfiguredVariable{cfg})
@@ -303,7 +304,7 @@ func TestUseRuleGuardedConfig(t *testing.T) {
 // --- ForwardRule ---
 
 func TestForwardRuleConstruction(t *testing.T) {
-	u, _ := url.Parse("https://example.com/module")
+	u, _ := sassurl.Parse("https://example.com/module")
 	span := supportSpan("@forward 'mod';", 0, 14)
 	fr := NewForwardRule(u, span, nil, nil)
 
@@ -313,7 +314,7 @@ func TestForwardRuleConstruction(t *testing.T) {
 }
 
 func TestForwardRuleString(t *testing.T) {
-	u, _ := url.Parse("https://example.com/module")
+	u, _ := sassurl.Parse("https://example.com/module")
 	span := supportSpan("@forward 'mod';", 0, 14)
 	fr := NewForwardRule(u, span, nil, nil)
 

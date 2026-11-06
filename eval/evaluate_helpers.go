@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/url"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -1203,8 +1202,8 @@ func (v *EvaluateVisitor) humanizeFrame(frame *sasscommon.Frame) {
 //
 // Matches Dart: the _loadedUrls set of every stylesheet canonical URL seen
 // during compilation.
-func (v *EvaluateVisitor) loadedUrlsList() []*url.URL {
-	urls := make([]*url.URL, 0, v.loadedUrls.Len())
+func (v *EvaluateVisitor) loadedUrlsList() []*sassurl.URL {
+	urls := make([]*sassurl.URL, 0, v.loadedUrls.Len())
 	for u := range v.loadedUrls.Keys() {
 		parsed, err := sassurl.Parse(u)
 		if err == nil {
@@ -1216,8 +1215,8 @@ func (v *EvaluateVisitor) loadedUrlsList() []*url.URL {
 
 // defaultNamespace derives the default @use namespace from u: the URL path's
 // basename without its extension, with underscores replaced by hyphens.
-func defaultNamespace(u *url.URL) string {
-	base := filepath.Base(u.Path)
+func defaultNamespace(u *sassurl.URL) string {
+	base := filepath.Base(sassurl.DecodeRelativePath(u.Path))
 	ext := filepath.Ext(base)
 	name := base[:len(base)-len(ext)]
 	return strings.ReplaceAll(name, "_", "-")

@@ -10,8 +10,9 @@ package sasscommon
 
 import (
 	"fmt"
-	"net/url"
 	"unicode/utf8"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // LineScannerState represents a saved scanner state for backtracking.
@@ -63,7 +64,7 @@ type SpanScanner struct {
 // sourceUrl feeds both the emitted FileSpans and error reporting. Go
 // always starts at position 0 (Dart's initial-position argument has no
 // counterpart; callers use SetPosition instead).
-func NewSpanScanner(source []byte, sourceURL *url.URL) *SpanScanner {
+func NewSpanScanner(source []byte, sourceURL *sassurl.URL) *SpanScanner {
 	return &SpanScanner{
 		source: NewFileSource(source, sourceURL),
 	}
@@ -76,7 +77,7 @@ func (s *SpanScanner) Text() string { return s.source.Text() }
 // SourceURL returns the URL of the scanned source, used for error
 // reporting. May be nil when the source URL is unknown or unavailable.
 // Matches Dart: StringScanner.sourceUrl (string_scanner.dart).
-func (s *SpanScanner) SourceURL() *url.URL { return s.source.URL() }
+func (s *SpanScanner) SourceURL() *sassurl.URL { return s.source.URL() }
 
 // IsDone reports whether the scanner has completely consumed the source.
 // Matches Dart: StringScanner.isDone (string_scanner.dart).

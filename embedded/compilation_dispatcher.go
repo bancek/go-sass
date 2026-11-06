@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strings"
 
@@ -258,7 +257,7 @@ func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) 
 		}
 
 		sourceURL := input.GetUrl()
-		var parsedURL *url.URL
+		var parsedURL *sassurl.URL
 		if sourceURL != "" {
 			parsedURL, _ = sassurl.Parse(sourceURL)
 		}

@@ -10,7 +10,8 @@ package value
 
 import (
 	"maps"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // FindDependencies returns stylesheet's statically-declared dependencies:
@@ -20,10 +21,10 @@ import (
 // Matches Dart: findDependencies
 func FindDependencies(stylesheet *Stylesheet) *DependencyReport {
 	v := &findDependenciesVisitor{
-		uses:           map[string]*url.URL{},
-		forwards:       map[string]*url.URL{},
-		metaLoadCss:    map[string]*url.URL{},
-		imports:        map[string]*url.URL{},
+		uses:           map[string]*sassurl.URL{},
+		forwards:       map[string]*sassurl.URL{},
+		metaLoadCss:    map[string]*sassurl.URL{},
+		imports:        map[string]*sassurl.URL{},
 		metaNamespaces: map[string]struct{}{},
 	}
 	v.VisitStylesheet(stylesheet)
@@ -42,37 +43,37 @@ func FindDependencies(stylesheet *Stylesheet) *DependencyReport {
 // Matches Dart: DependencyReport
 type DependencyReport struct {
 	// Uses holds every @use'd URL, excluding built-in modules.
-	Uses map[string]*url.URL
+	Uses map[string]*sassurl.URL
 	// Forwards holds every @forward'ed URL, excluding built-in modules.
-	Forwards map[string]*url.URL
+	Forwards map[string]*sassurl.URL
 	// MetaLoadCss holds URLs from meta.load-css() calls with static string
 	// arguments outside of mixins.
-	MetaLoadCss map[string]*url.URL
+	MetaLoadCss map[string]*sassurl.URL
 	// Imports holds dynamically @import'ed URLs.
-	Imports map[string]*url.URL
+	Imports map[string]*sassurl.URL
 }
 
 // Modules returns the union of Uses, Forwards, and MetaLoadCss.
 //
 // Matches Dart: DependencyReport.modules
-func (r *DependencyReport) Modules() []*url.URL {
+func (r *DependencyReport) Modules() []*sassurl.URL {
 	return mergeURISets(r.Uses, r.Forwards, r.MetaLoadCss)
 }
 
 // All returns the union of Uses, Forwards, MetaLoadCss, and Imports.
 //
 // Matches Dart: DependencyReport.all
-func (r *DependencyReport) All() []*url.URL {
+func (r *DependencyReport) All() []*sassurl.URL {
 	return mergeURISets(r.Uses, r.Forwards, r.MetaLoadCss, r.Imports)
 }
 
 // mergeURISets unions URL sets keyed by string, deduplicating repeats.
-func mergeURISets(sets ...map[string]*url.URL) []*url.URL {
-	seen := map[string]*url.URL{}
+func mergeURISets(sets ...map[string]*sassurl.URL) []*sassurl.URL {
+	seen := map[string]*sassurl.URL{}
 	for _, set := range sets {
 		maps.Copy(seen, set)
 	}
-	result := make([]*url.URL, 0, len(seen))
+	result := make([]*sassurl.URL, 0, len(seen))
 	for _, u := range seen {
 		result = append(result, u)
 	}
@@ -86,10 +87,10 @@ func mergeURISets(sets ...map[string]*url.URL) []*url.URL {
 // mixin, this visitor implements StatementVisitor directly and recurses via
 // visitChildren, so overrides dispatch to these methods.
 type findDependenciesVisitor struct {
-	uses        map[string]*url.URL
-	forwards    map[string]*url.URL
-	metaLoadCss map[string]*url.URL
-	imports     map[string]*url.URL
+	uses        map[string]*sassurl.URL
+	forwards    map[string]*sassurl.URL
+	metaLoadCss map[string]*sassurl.URL
+	imports     map[string]*sassurl.URL
 	// The namespaces under which sass:meta has been @use'd in this stylesheet.
 	// If this contains "", it means sass:meta was loaded without a namespace.
 	metaNamespaces map[string]struct{}
@@ -211,7 +212,7 @@ func (v *findDependenciesVisitor) VisitIncludeRule(node *IncludeRule) (struct{},
 	}
 	if se, ok := args.Positional[0].(*StringExpression); ok {
 		if plain := se.Text.AsPlain(); plain != nil {
-			u, err := url.Parse(*plain)
+			u, err := sassurl.Parse(*plain)
 			if err == nil {
 				v.metaLoadCss[u.String()] = u
 			}

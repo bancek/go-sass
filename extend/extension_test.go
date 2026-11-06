@@ -1,8 +1,9 @@
 package extend
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/value"
@@ -10,7 +11,7 @@ import (
 
 func realSpan() sasscommon.FileSpan {
 	raw := []byte(".a")
-	fileURL, _ := url.Parse("test.scss")
+	fileURL, _ := sassurl.Parse("test.scss")
 	fs := sasscommon.NewFileSource(raw, fileURL)
 	return fs.Span(0, len(raw))
 }

@@ -9,7 +9,7 @@ package sasscommon
 // dart-source: lib/src/util/lazy_file_span.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // LazyFileSpan is a FileSpan whose underlying span is built on first use
@@ -94,7 +94,7 @@ func (l *LazyFileSpan) Length() (int, error) {
 }
 
 // SourceURL resolves the underlying span, then reports its source URL.
-func (l *LazyFileSpan) SourceURL() (*url.URL, error) {
+func (l *LazyFileSpan) SourceURL() (*sassurl.URL, error) {
 	s, err := l.Get()
 	if err != nil {
 		return nil, err

@@ -10,8 +10,9 @@ package embedded
 
 import (
 	"fmt"
-	"net/url"
 	"time"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"google.golang.org/protobuf/proto"
 
@@ -54,7 +55,7 @@ func NewFileImporter(dispatcher *CompilationDispatcher, importerID uint32) *File
 // (declined) results behave exactly as in HostImporter.Canonicalize.
 //
 // Matches Dart: FileImporter.canonicalize in importer/file.dart.
-func (f *FileImporter) Canonicalize(u *url.URL, ctx *eval.CanonicalizeContext) (*url.URL, error) {
+func (f *FileImporter) Canonicalize(u *sassurl.URL, ctx *eval.CanonicalizeContext) (*sassurl.URL, error) {
 	if u.Scheme == "file" {
 		return eval.NewFilesystemImporterCwd(f.base.Dispatcher.IO).Canonicalize(u, ctx)
 	}
@@ -103,14 +104,14 @@ func (f *FileImporter) Canonicalize(u *url.URL, ctx *eval.CanonicalizeContext) (
 //
 // Matches Dart: FileImporter.load (delegates to FilesystemImporter.cwd.load)
 // in importer/file.dart.
-func (f *FileImporter) Load(canonicalURL *url.URL) (*eval.ImporterResult, error) {
+func (f *FileImporter) Load(canonicalURL *sassurl.URL) (*eval.ImporterResult, error) {
 	return eval.NewFilesystemImporterCwd(f.base.Dispatcher.IO).Load(canonicalURL)
 }
 
 // CouldCanonicalize always returns false: like the host importer, the file
 // importer cannot pre-check without either local resolution or a host
 // round-trip, so callers always go through Canonicalize.
-func (f *FileImporter) CouldCanonicalize(u, canonicalURL *url.URL) bool {
+func (f *FileImporter) CouldCanonicalize(u, canonicalURL *sassurl.URL) bool {
 	return false
 }
 
@@ -126,6 +127,6 @@ func (f *FileImporter) IsNonCanonicalScheme(scheme string) bool {
 // ModificationTime returns the current time: file-importer results resolve
 // through the host, whose freshness the compiler cannot observe, so they are
 // treated as always fresh just like host-importer results.
-func (f *FileImporter) ModificationTime(canonicalURL *url.URL) (time.Time, error) {
+func (f *FileImporter) ModificationTime(canonicalURL *sassurl.URL) (time.Time, error) {
 	return time.Now(), nil
 }

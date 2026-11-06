@@ -11,7 +11,8 @@ package sassenv
 import (
 	"fmt"
 	"maps"
-	"net/url"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/configuration"
 	"github.com/bancek/go-sass/extend"
@@ -1678,7 +1679,7 @@ func (m *environmentModule) String() (string, error) {
 		return "<unknown url>", nil
 	}
 	// Dart: url == null ? "<unknown url>" : p.prettyUri(url) — environment.dart:1151
-	parsed, err := url.Parse(urlStr)
+	parsed, err := sassurl.Parse(urlStr)
 	if err != nil {
 		return urlStr, nil
 	}

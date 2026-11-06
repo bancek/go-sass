@@ -22,8 +22,8 @@ try the base importer first with the URL resolved against the base URL.
 ```go
 // eval/importer.go
 type Importer interface {
-    Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*url.URL, error)
-    Load(canonicalURL *url.URL) (*ImporterResult, error)
+    Canonicalize(u *sassurl.URL, ctx *CanonicalizeContext) (*sassurl.URL, error)
+    Load(canonicalURL *sassurl.URL) (*ImporterResult, error)
     // … CouldCanonicalize, display
 }
 ```

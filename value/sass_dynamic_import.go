@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/ast/sass/import/dynamic.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -38,10 +38,10 @@ func NewDynamicImport(urlString string, span sasscommon.FileSpan) *DynamicImport
 // Uri.parse() which always produces a Uri (never null).
 //
 // Matches Dart: DynamicImport.url
-func (i *DynamicImport) URL() *url.URL {
-	parsed, err := url.Parse(i.urlString)
+func (i *DynamicImport) URL() *sassurl.URL {
+	parsed, err := sassurl.Parse(i.urlString)
 	if err != nil {
-		// url.Parse returns a partially parsed URL even on error, so we
+		// sassurl.Parse returns a partially parsed URL even on error, so we
 		// return it rather than nil to match Dart's non-null guarantee.
 		return parsed
 	}

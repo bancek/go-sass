@@ -10,8 +10,9 @@ package sasscommon
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // SourceSpanWithContext is a span with explicit text and context strings,
@@ -37,7 +38,7 @@ type SourceSpanWithContext struct {
 	end     SourceLocation
 	text    string
 	context string
-	url     *url.URL
+	url     *sassurl.URL
 }
 
 var _ FileSpan = SourceSpanWithContext{}
@@ -52,7 +53,7 @@ var _ FileSpan = SourceSpanWithContext{}
 // ArgumentError on violation; Go returns *ArgumentError. Dart's base-class
 // same-URL check has no counterpart here because Go's SourceLocation
 // carries no URL — the span URL travels in the separate sourceURL argument.
-func NewSourceSpanWithContext(start, end SourceLocation, text, context string, sourceURL *url.URL) (SourceSpanWithContext, error) {
+func NewSourceSpanWithContext(start, end SourceLocation, text, context string, sourceURL *sassurl.URL) (SourceSpanWithContext, error) {
 	if !strings.Contains(context, text) {
 		return SourceSpanWithContext{}, &ArgumentError{Message: "The context line must contain the span text."}
 	}
@@ -69,7 +70,7 @@ func (s SourceSpanWithContext) File() (*FileSource, error) { return nil, nil }
 
 // SourceURL returns the URL of the source, which may be nil when unknown.
 // Matches Dart: SourceSpan.sourceUrl (span.dart).
-func (s SourceSpanWithContext) SourceURL() (*url.URL, error) { return s.url, nil }
+func (s SourceSpanWithContext) SourceURL() (*sassurl.URL, error) { return s.url, nil }
 
 // SpanText returns the source text for this span.
 // Matches Dart: SourceSpan.text (span.dart).

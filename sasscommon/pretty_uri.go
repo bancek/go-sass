@@ -9,10 +9,11 @@ package sasscommon
 // dart-source: (external) package:path
 
 import (
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // PrettyUri renders uri for human consumption: file: URIs become paths
@@ -26,9 +27,16 @@ import (
 // plain paths that carry no scheme.
 //
 // Matches Dart: Context.prettyUri (package:path)
-func PrettyUri(uri *url.URL) string {
+func PrettyUri(uri *sassurl.URL) string {
 	if uri.Scheme == "file" || uri.Scheme == "" {
 		absPath := uri.Path
+		if uri.Scheme == "file" {
+			if fsPath, ok := uri.ToFilePathString(); ok {
+				absPath = fsPath
+			}
+		} else {
+			absPath = sassurl.DecodeRelativePath(absPath)
+		}
 		if cwd, err := os.Getwd(); err == nil {
 			if rel, err := filepath.Rel(cwd, absPath); err == nil {
 				if len(strings.Split(rel, string(filepath.Separator))) <=

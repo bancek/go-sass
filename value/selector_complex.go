@@ -9,7 +9,7 @@ package value
 // dart-source: lib/src/ast/selector/complex.dart
 
 import (
-	"net/url"
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sasslogger"
@@ -71,7 +71,7 @@ func (c *ComplexSelector) IsSelector()                        {}
 // non-nil it names the file contents came from; allowParent controls whether
 // a parent selector is accepted; logger receives deprecation warnings and may
 // be nil to use the default logger. It returns an error when parsing fails.
-func ComplexSelectorParse(contents string, url *url.URL, allowParent bool, logger sasslogger.Logger) (*ComplexSelector, error) {
+func ComplexSelectorParse(contents string, url *sassurl.URL, allowParent bool, logger sasslogger.Logger) (*ComplexSelector, error) {
 	parser := NewSelectorParser(contents, url, nil, &SelectorParserOptions{
 		AllowParent: &allowParent,
 		Logger:      logger,

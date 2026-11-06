@@ -10,8 +10,9 @@ package eval
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/configuration"
 	"github.com/bancek/go-sass/deprecation"
@@ -424,11 +425,11 @@ func (v *EvaluateVisitor) createMetaMixins(env *sassenv.Environment) []sasscalla
 			if err != nil {
 				return nil, err
 			}
-			parsed, err := url.Parse(urlStr.Text)
+			parsed, err := sassurl.Parse(urlStr.Text)
 			// Go's URL parser can reject inputs Dart's accepts; fall back to
 			// a path-only URL rather than rejecting the input.
 			if err != nil {
-				parsed = &url.URL{Path: urlStr.Text}
+				parsed = &sassurl.URL{Path: urlStr.Text}
 			}
 			var withMap *value.SassMap
 			if withVal := args[1].RealNull(); withVal != nil {

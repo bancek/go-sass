@@ -13,8 +13,9 @@ package value
 import (
 	"errors"
 	"fmt"
-	goUrl "net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -87,7 +88,7 @@ func (p *StylesheetParser) Parse() (*Stylesheet, error) {
 			}
 			if srcURL != nil && srcURL.String() != "stdin" {
 				err = sasscommon.ThrowWithTrace(
-					sfe.WithLoadedUrls([]*goUrl.URL{srcURL}),
+					sfe.WithLoadedUrls([]*sassurl.URL{srcURL}),
 					sfe,
 				)
 			}
@@ -99,7 +100,7 @@ func (p *StylesheetParser) Parse() (*Stylesheet, error) {
 			}
 			if srcURL != nil && srcURL.String() != "stdin" {
 				err = sasscommon.ThrowWithTrace(
-					msfe.WithLoadedUrls([]*goUrl.URL{srcURL}),
+					msfe.WithLoadedUrls([]*sassurl.URL{srcURL}),
 					msfe,
 				)
 			}

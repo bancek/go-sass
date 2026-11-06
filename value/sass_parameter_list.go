@@ -10,8 +10,9 @@ package value
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
@@ -24,7 +25,7 @@ import (
 // failure returns a SassFormatException.
 //
 // Matches Dart: ParameterList.parse
-func ParseParameterList(contents string, url *url.URL) (*ParameterList, error) {
+func ParseParameterList(contents string, url *sassurl.URL) (*ParameterList, error) {
 	p := NewStylesheetParser([]byte(contents), url, false, nil)
 	return p.parseParameterList()
 }

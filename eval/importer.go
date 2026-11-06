@@ -7,8 +7,9 @@
 package eval
 
 import (
-	"net/url"
 	"time"
+
+	"github.com/bancek/go-sass/sassurl"
 )
 
 // dart-source: lib/src/importer.dart
@@ -47,7 +48,7 @@ type Importer interface {
 	//
 	// The ctx parameter provides contextual information about the current load,
 	// including whether it's from an @import rule and the containing URL.
-	Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*url.URL, error)
+	Canonicalize(u *sassurl.URL, ctx *CanonicalizeContext) (*sassurl.URL, error)
 
 	// Load loads the stylesheet at canonicalURL and returns its contents.
 	//
@@ -55,7 +56,7 @@ type Importer interface {
 	// A nil result means the stylesheet cannot be found here; a load failure
 	// for a URL this importer owns surfaces as an error that the load site
 	// wraps with the importing rule's span and trace.
-	Load(canonicalURL *url.URL) (*ImporterResult, error)
+	Load(canonicalURL *sassurl.URL) (*ImporterResult, error)
 
 	// CouldCanonicalize returns whether this importer could potentially
 	// canonicalize url to canonicalUrl.
@@ -64,7 +65,7 @@ type Importer interface {
 	// is allowed where precision would be expensive, but under-reporting is
 	// not: a false negative would leave a stale cache entry behind when the
 	// file graph changes.
-	CouldCanonicalize(url *url.URL, canonicalURL *url.URL) bool
+	CouldCanonicalize(url *sassurl.URL, canonicalURL *sassurl.URL) bool
 
 	// IsNonCanonicalScheme returns whether the given scheme is a non-canonical
 	// scheme for this importer.
@@ -85,5 +86,5 @@ type Importer interface {
 	// If an error is returned, the caller will use the current time as a
 	// fallback (matching Dart's behavior of catching exceptions and defaulting
 	// to DateTime.now()).
-	ModificationTime(canonicalURL *url.URL) (time.Time, error)
+	ModificationTime(canonicalURL *sassurl.URL) (time.Time, error)
 }

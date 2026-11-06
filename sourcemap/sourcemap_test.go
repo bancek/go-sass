@@ -6,9 +6,10 @@ package sourcemap
 
 import (
 	"encoding/json"
-	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -16,7 +17,7 @@ import (
 // testSpan creates a FileSpan for sourcemap testing with the given content
 // and offset range.
 func testSpan(text string, startOffset, endOffset int) sasscommon.FileSpan {
-	u, _ := url.Parse("input.scss")
+	u, _ := sassurl.Parse("input.scss")
 	fs := sasscommon.NewFileSource([]byte(text), u)
 	return sasscommon.NewSimpleFileSpan(fs, startOffset, endOffset)
 }
@@ -25,7 +26,7 @@ func testSpan(text string, startOffset, endOffset int) sasscommon.FileSpan {
 func testSourceSpan(sourceFile string, line, col int) sasscommon.FileSpan {
 	content := strings.Repeat("\n", line) + strings.Repeat("x", col)
 	offset := line + col
-	u, _ := url.Parse(sourceFile)
+	u, _ := sassurl.Parse(sourceFile)
 	fs := sasscommon.NewFileSource([]byte(content), u)
 	return sasscommon.NewSimpleFileSpan(fs, offset, offset)
 }

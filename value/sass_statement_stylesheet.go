@@ -9,8 +9,9 @@ package value
 // dart-source: lib/src/ast/sass/statement/stylesheet.dart
 
 import (
-	goUrl "net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sasscommon"
@@ -146,18 +147,18 @@ func (s *Stylesheet) String() (string, error) {
 
 // ParseScss parses SCSS contents into a Stylesheet.
 // Matches Dart: Stylesheet.parseScss(contents, url: ..., parseSelectors: ...)
-func ParseScss(contents []byte, url *goUrl.URL, parseSelectors bool) (*Stylesheet, error) {
+func ParseScss(contents []byte, url *sassurl.URL, parseSelectors bool) (*Stylesheet, error) {
 	return NewScssParser(contents, url, parseSelectors).Parse()
 }
 
 // ParseSass parses indented-syntax contents into a Stylesheet.
 // Matches Dart: Stylesheet.parseSass(contents, url: ..., parseSelectors: ...)
-func ParseSass(contents []byte, url *goUrl.URL, parseSelectors bool) (*Stylesheet, error) {
+func ParseSass(contents []byte, url *sassurl.URL, parseSelectors bool) (*Stylesheet, error) {
 	return NewSassParser(contents, url, parseSelectors).Parse()
 }
 
 // ParseCss parses plain CSS contents into a Stylesheet.
 // Matches Dart: Stylesheet.parseCss(contents, url: ..., parseSelectors: ...)
-func ParseCss(contents []byte, url *goUrl.URL, parseSelectors bool, disallowedFunctionNames map[string]bool) (*Stylesheet, error) {
+func ParseCss(contents []byte, url *sassurl.URL, parseSelectors bool, disallowedFunctionNames map[string]bool) (*Stylesheet, error) {
 	return NewCssParser(contents, url, parseSelectors, disallowedFunctionNames).Parse()
 }

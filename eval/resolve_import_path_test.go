@@ -154,8 +154,8 @@ func TestResolveImportPath_Ambiguous(t *testing.T) {
 	}
 	want := strings.Join([]string{
 		"It's not clear which file to import. Found:",
-		"  " + filepath.ToSlash(b),
-		"  " + filepath.ToSlash(a),
+		"  " + b,
+		"  " + a,
 	}, "\n")
 	if err.Error() != want {
 		t.Errorf("error = %q\n  want %q", err.Error(), want)
@@ -180,8 +180,8 @@ func TestResolveImportPath_Ambiguous_WithPartial(t *testing.T) {
 	}
 	want := strings.Join([]string{
 		"It's not clear which file to import. Found:",
-		"  " + filepath.ToSlash(b),
-		"  " + filepath.ToSlash(a),
+		"  " + b,
+		"  " + a,
 	}, "\n")
 	if err.Error() != want {
 		t.Errorf("error = %q\n  want %q", err.Error(), want)

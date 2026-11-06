@@ -9,8 +9,9 @@ package value
 // dart-source: lib/src/parse/css.dart
 
 import (
-	goUrl "net/url"
 	"strings"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/orderedmap"
@@ -39,7 +40,7 @@ type CssParser struct {
 // selectors parse as interpolated selectors; disallowedFunctionNames lists
 // the Sass function names rejected in plain CSS (nil keeps the field unset).
 // Use of @use-family rules stays allowed, matching the SCSS base.
-func NewCssParser(contents []byte, url *goUrl.URL, parseSelectors bool, disallowedFunctionNames map[string]bool) *CssParser {
+func NewCssParser(contents []byte, url *sassurl.URL, parseSelectors bool, disallowedFunctionNames map[string]bool) *CssParser {
 	p := &CssParser{}
 	if disallowedFunctionNames != nil {
 		p.disallowedFunctionNames = disallowedFunctionNames

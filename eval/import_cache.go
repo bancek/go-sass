@@ -15,7 +15,6 @@ package eval
 
 import (
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -40,10 +39,10 @@ type CanonicalizeResult struct {
 	// Importer that canonicalized the URL.
 	Importer Importer
 	// Canonical URL returned by the importer.
-	CanonicalURL *url.URL
+	CanonicalURL *sassurl.URL
 	// URL passed to the importer, resolved relative to the base URL when one
 	// applies.
-	OriginalURL *url.URL
+	OriginalURL *sassurl.URL
 }
 
 // PackageConfig resolves package: URLs to file: URLs.
@@ -54,7 +53,7 @@ type CanonicalizeResult struct {
 type PackageConfig interface {
 	// Resolve resolves a package: URL to a file: URL, or returns nil if the
 	// package is unknown.
-	Resolve(u *url.URL) *url.URL
+	Resolve(u *sassurl.URL) *sassurl.URL
 }
 
 // FilesystemImporter loads files from a load path on the filesystem, either
@@ -136,27 +135,6 @@ func NewFilesystemImporterNoLoadPath(io sassio.IO) *FilesystemImporter {
 // Canonicalize resolves u to an absolute file: URL, or returns nil when
 // another importer should handle it.
 //
-// Absolute file: URLs resolve directly through the import-path lookup.
-// fileURLToOSPath converts a file: URL path to an OS filesystem path.
-//
-// URL paths always use forward slashes with a leading slash, so a Windows
-// path arrives as "/C:/dir/file" — a form Go's filepath (no volume, not
-// absolute) and the OS both reject. The leading slash is stripped before
-// an ASCII drive letter, mirroring Dart's p.fromUri. Everywhere else the
-// URL path is already a valid OS path (forward slashes are accepted
-// Windows separators), so it passes through untouched. Unconditional, not
-// runtime-gated: only Windows produces such paths, and Dart agrees with
-// the stripped form there — the only OS where they exist.
-//
-// Matches Dart: p.fromUri in package:path (drive-letter branch).
-func fileURLToOSPath(path string) string {
-	if len(path) > 2 && path[0] == '/' && path[2] == ':' &&
-		((path[1] >= 'A' && path[1] <= 'Z') || (path[1] >= 'a' && path[1] <= 'z')) {
-		return path[1:]
-	}
-	return path
-}
-
 // Scheme-less URLs resolve against the load path; an importer without one
 // only serves file: URLs and relative-to-current-file loads, so it declines
 // rather than falling back to the working directory. Any other scheme belongs
@@ -165,10 +143,10 @@ func fileURLToOSPath(path string) string {
 //
 // Matches Dart: FilesystemImporter.canonicalize in
 // lib/src/importer/filesystem.dart
-func (i *FilesystemImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) (*url.URL, error) {
+func (i *FilesystemImporter) Canonicalize(u *sassurl.URL, ctx *CanonicalizeContext) (*sassurl.URL, error) {
 	var resolved string
 	if u.Scheme == "file" {
-		r, err := resolveImportPath(i.io, fileURLToOSPath(u.Path), ctx.FromImport)
+		r, err := resolveImportPath(i.io, u.FSPath(), ctx.FromImport)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +154,7 @@ func (i *FilesystemImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) 
 	} else if u.Scheme != "" {
 		return nil, nil
 	} else if i.loadPath != nil {
-		r, err := resolveImportPath(i.io, filepath.Join(*i.loadPath, u.Path), ctx.FromImport)
+		r, err := resolveImportPath(i.io, filepath.Join(*i.loadPath, sassurl.DecodeRelativePath(u.Path)), ctx.FromImport)
 		if err != nil {
 			return nil, err
 		}
@@ -209,7 +187,10 @@ func (i *FilesystemImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) 
 	if err != nil {
 		return nil, err
 	}
-	canonical := &url.URL{Scheme: "file", Path: filepath.ToSlash(canonicalized)}
+	canonical, err := sassurl.FileURLFromAbsPath(canonicalized)
+	if err != nil {
+		return nil, err
+	}
 	return canonical, nil
 }
 
@@ -219,11 +200,11 @@ func (i *FilesystemImporter) Canonicalize(u *url.URL, ctx *CanonicalizeContext) 
 // than nil because a canonical file URL uniquely belongs to this importer.
 //
 // Matches Dart: FilesystemImporter.load in lib/src/importer/filesystem.dart
-func (i *FilesystemImporter) Load(u *url.URL) (*ImporterResult, error) {
+func (i *FilesystemImporter) Load(u *sassurl.URL) (*ImporterResult, error) {
 	if u.Scheme != "file" {
 		return nil, fmt.Errorf("cannot load non-file URL: %s", u)
 	}
-	contents, err := i.io.ReadFile(fileURLToOSPath(u.Path))
+	contents, err := i.io.ReadFile(u.FSPath())
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +221,7 @@ func (i *FilesystemImporter) Load(u *url.URL) (*ImporterResult, error) {
 //
 // Matches Dart: FilesystemImporter.couldCanonicalize in
 // lib/src/importer/filesystem.dart
-func (i *FilesystemImporter) CouldCanonicalize(url *url.URL, canonicalURL *url.URL) bool {
+func (i *FilesystemImporter) CouldCanonicalize(url *sassurl.URL, canonicalURL *sassurl.URL) bool {
 	if url.Scheme != "file" && url.Scheme != "" {
 		return false
 	}
@@ -274,11 +255,11 @@ func (i *FilesystemImporter) IsNonCanonicalScheme(scheme string) bool {
 //
 // Matches Dart: FilesystemImporter.modificationTime in
 // lib/src/importer/filesystem.dart
-func (i *FilesystemImporter) ModificationTime(canonicalURL *url.URL) (time.Time, error) {
+func (i *FilesystemImporter) ModificationTime(canonicalURL *sassurl.URL) (time.Time, error) {
 	if canonicalURL.Scheme != "file" {
 		return time.Now(), nil
 	}
-	info, err := i.io.Stat(canonicalURL.Path)
+	info, err := i.io.Stat(canonicalURL.FSPath())
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -341,7 +322,7 @@ type ImportCache struct {
 	// that were loaded.
 	//
 	// This is used to invalidate the cache when files are changed.
-	nonCanonicalRelativeUrls map[canonicalizeKey]*url.URL
+	nonCanonicalRelativeUrls map[canonicalizeKey]*sassurl.URL
 
 	// The parsed stylesheets for each canonicalized import URL.
 	importCache map[string]*value.Stylesheet
@@ -369,7 +350,7 @@ func NewImportCache(importers []Importer, parseSelectors bool) *ImportCache {
 		parseSelectors:               parseSelectors,
 		canonicalizeCache:            make(map[canonicalizeKey]*CanonicalizeResult),
 		perImporterCanonicalizeCache: make(map[canonicalizeKey]*CanonicalizeResult),
-		nonCanonicalRelativeUrls:     make(map[canonicalizeKey]*url.URL),
+		nonCanonicalRelativeUrls:     make(map[canonicalizeKey]*sassurl.URL),
 		importCache:                  make(map[string]*value.Stylesheet),
 		resultsCache:                 make(map[string]*ImporterResult),
 		loadTimes:                    make(map[string]time.Time),
@@ -474,7 +455,7 @@ func NewImportCacheOnly(importers []Importer, parseSelectors bool) *ImportCache 
 // by reading the containing URL.
 //
 // Matches Dart: ImportCache.canonicalize
-func (c *ImportCache) Canonicalize(u *url.URL, baseImporter Importer, baseURL *url.URL, forImport bool) (*CanonicalizeResult, error) {
+func (c *ImportCache) Canonicalize(u *sassurl.URL, baseImporter Importer, baseURL *sassurl.URL, forImport bool) (*CanonicalizeResult, error) {
 	if baseImporter != nil && u.Scheme == "" {
 		resolvedURL := u
 		if baseURL != nil {
@@ -591,11 +572,11 @@ func (c *ImportCache) Canonicalize(u *url.URL, baseImporter Importer, baseURL *u
 // declared non-canonical is rejected outright.
 //
 // Matches Dart: ImportCache._canonicalize
-func (c *ImportCache) canonicalizeWith(imp Importer, u *url.URL, baseURL *url.URL, forImport bool) (*CanonicalizeResult, bool, error) {
+func (c *ImportCache) canonicalizeWith(imp Importer, u *sassurl.URL, baseURL *sassurl.URL, forImport bool) (*CanonicalizeResult, bool, error) {
 	passContainingURL := baseURL != nil &&
 		(u.Scheme == "" || imp.IsNonCanonicalScheme(u.Scheme))
 
-	containingURL := (*url.URL)(nil)
+	containingURL := (*sassurl.URL)(nil)
 	if passContainingURL {
 		containingURL = baseURL
 	}
@@ -645,7 +626,7 @@ func (c *ImportCache) canonicalizeWith(imp Importer, u *url.URL, baseURL *url.UR
 // parse-tree cache keyed on it.
 //
 // Matches Dart: ImportCache.import
-func (c *ImportCache) Import(u *url.URL, baseImporter Importer, baseURL *url.URL, forImport bool) (Importer, *value.Stylesheet, error) {
+func (c *ImportCache) Import(u *sassurl.URL, baseImporter Importer, baseURL *sassurl.URL, forImport bool) (Importer, *value.Stylesheet, error) {
 	result, err := c.Canonicalize(u, baseImporter, baseURL, forImport)
 	if err != nil {
 		return nil, nil, err
@@ -677,7 +658,7 @@ func (c *ImportCache) Import(u *url.URL, baseImporter Importer, baseURL *url.URL
 // timestamp and raw result are recorded only for successful loads.
 //
 // Matches Dart: ImportCache.importCanonical
-func (c *ImportCache) ImportCanonical(imp Importer, canonicalURL *url.URL, originalURL *url.URL) (*value.Stylesheet, error) {
+func (c *ImportCache) ImportCanonical(imp Importer, canonicalURL *sassurl.URL, originalURL *sassurl.URL) (*value.Stylesheet, error) {
 	key := canonicalURL.String()
 	if cached, ok := c.importCache[key]; ok {
 		return cached, nil
@@ -724,7 +705,7 @@ func (c *ImportCache) ImportCanonical(imp Importer, canonicalURL *url.URL, origi
 // "_example.scss" still shows the partial name.
 //
 // Matches Dart: ImportCache.humanize
-func (c *ImportCache) Humanize(canonicalURL *url.URL) string {
+func (c *ImportCache) Humanize(canonicalURL *sassurl.URL) string {
 	canonicalStr := canonicalURL.String()
 
 	// If multiple original URLs canonicalize to the same thing, choose the
@@ -753,7 +734,7 @@ func (c *ImportCache) Humanize(canonicalURL *url.URL) string {
 		base := filepath.Base(canonicalURL.Path)
 		resolved, err := sassurl.Parse(shortestOriginal)
 		if err == nil {
-			humanized := resolved.ResolveReference(&url.URL{Path: base})
+			humanized := resolved.ResolveReference(&sassurl.URL{Path: base})
 			return humanized.String()
 		}
 	}
@@ -769,7 +750,7 @@ func (c *ImportCache) Humanize(canonicalURL *url.URL) string {
 // data: URL fallback lives on ImporterResult, not here.
 //
 // Matches Dart: ImportCache.sourceMapUrl
-func (c *ImportCache) SourceMapURL(canonicalURL *url.URL) string {
+func (c *ImportCache) SourceMapURL(canonicalURL *sassurl.URL) string {
 	key := canonicalURL.String()
 	if result, ok := c.resultsCache[key]; ok && result.sourceMapURL != nil {
 		return result.SourceMapURL().String()
@@ -785,7 +766,7 @@ func (c *ImportCache) SourceMapURL(canonicalURL *url.URL) string {
 // it started.
 //
 // Matches Dart: ImportCache.loadTime
-func (c *ImportCache) LoadTime(canonicalURL *url.URL) *time.Time {
+func (c *ImportCache) LoadTime(canonicalURL *sassurl.URL) *time.Time {
 	t, ok := c.loadTimes[canonicalURL.String()]
 	if !ok {
 		return nil
@@ -801,7 +782,7 @@ func (c *ImportCache) LoadTime(canonicalURL *url.URL) *time.Time {
 // importer's cheap CouldCanonicalize gate rather than re-running resolution.
 //
 // Matches Dart: ImportCache.clearCanonicalize
-func (c *ImportCache) ClearCanonicalize(canonicalURL *url.URL) {
+func (c *ImportCache) ClearCanonicalize(canonicalURL *sassurl.URL) {
 	for k := range c.canonicalizeCache {
 		for _, imp := range c.importers {
 			if u := parseURLOrNil(k.url); u != nil && imp.CouldCanonicalize(u, canonicalURL) {
@@ -828,7 +809,7 @@ func (c *ImportCache) ClearCanonicalize(canonicalURL *url.URL) {
 // stylesheet are dropped so the next import reloads from the importer.
 //
 // Matches Dart: ImportCache.clearImport
-func (c *ImportCache) ClearImport(canonicalURL *url.URL) {
+func (c *ImportCache) ClearImport(canonicalURL *sassurl.URL) {
 	key := canonicalURL.String()
 	delete(c.resultsCache, key)
 	delete(c.importCache, key)
@@ -839,7 +820,7 @@ func (c *ImportCache) ClearImport(canonicalURL *url.URL) {
 // The parser is chosen by syntax (SCSS, indented Sass, or plain CSS with the
 // disallowed-function gate), and the parsed tree carries u as its source URL
 // plus the parseSelectors flag for pre-parsed style-rule selectors.
-func parseStylesheet(contents string, u *url.URL, syntax Syntax, parseSelectors bool) (*value.Stylesheet, error) {
+func parseStylesheet(contents string, u *sassurl.URL, syntax Syntax, parseSelectors bool) (*value.Stylesheet, error) {
 	bytes := []byte(contents)
 	switch syntax {
 	case SyntaxSCSS:
@@ -860,7 +841,7 @@ func parseStylesheet(contents string, u *url.URL, syntax Syntax, parseSelectors 
 //
 // Used when sweeping string-keyed canonicalization caches during
 // invalidation: an unparsable key simply cannot match the gate check.
-func parseURLOrNil(rawURL string) *url.URL {
+func parseURLOrNil(rawURL string) *sassurl.URL {
 	u, err := sassurl.Parse(rawURL)
 	if err != nil {
 		return nil
@@ -868,10 +849,10 @@ func parseURLOrNil(rawURL string) *url.URL {
 	return u
 }
 
-// SortedURLKeys returns the keys of a map[*url.URL]T sorted by string
+// SortedURLKeys returns the keys of a map[*sassurl.URL]T sorted by string
 // representation. Useful for deterministic iteration.
-func SortedURLKeys[T any](m map[*url.URL]T) []*url.URL {
-	keys := make([]*url.URL, 0, len(m))
+func SortedURLKeys[T any](m map[*sassurl.URL]T) []*sassurl.URL {
+	keys := make([]*sassurl.URL, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}

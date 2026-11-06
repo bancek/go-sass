@@ -1,8 +1,9 @@
 package value
 
 import (
-	"net/url"
 	"testing"
+
+	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -43,7 +44,7 @@ func TestInterpolationMap_MapSpan(t *testing.T) {
 	// The generated text is "a.VALUE.b". The expression maps to offsets 2-7.
 	// So the generated span starts at 2 (after "a.") and ends at 7 (before ".b").
 	// Use a non-nil URL so isMapped distinguishes it from the source file.
-	genURL, _ := url.Parse("generated:///output")
+	genURL, _ := sassurl.Parse("generated:///output")
 	genFs := sasscommon.NewFileSource([]byte("a.VALUE.b"), genURL)
 	generatedSpan := sasscommon.NewFileSpan(genFs, 2, 7)
 
@@ -107,7 +108,7 @@ func TestInterpolationMap_MapException(t *testing.T) {
 
 	// Error at generated offset 4-5 ("V" in "a.VALUE.b")
 	// Use a non-nil URL so isMapped distinguishes it from the source file.
-	genURL, _ := url.Parse("generated:///output")
+	genURL, _ := sassurl.Parse("generated:///output")
 	genFs := sasscommon.NewFileSource([]byte("a.VALUE.b"), genURL)
 	generatedSpan := sasscommon.NewFileSpan(genFs, 4, 5)
 	ssfErr := &sasscommon.SourceSpanFormatException{Message: "expected selector", Span: generatedSpan}
@@ -157,7 +158,7 @@ func TestInterpolationMapEmptyContents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	genURL, _ := url.Parse("generated:///output")
+	genURL, _ := sassurl.Parse("generated:///output")
 	genFs := sasscommon.NewFileSource([]byte("output"), genURL)
 	genSpan := sasscommon.NewFileSpan(genFs, 2, 4)
 
