@@ -180,6 +180,13 @@ message or type. Tests match on the exception type and message text.
 
 ## 8. Testing
 
+### Inline tests, not fixtures
+
+Fixture files are an antipattern. Keep inputs, expected values, and
+assertions together in an inline table-driven test in the package's
+`_test.go` file. Do not add new `test/fixtures/...` or other external golden
+files; convert an existing fixture-based test when you touch it.
+
 ### Golden values
 
 For behavior whose correctness is a specific string or number, capture the

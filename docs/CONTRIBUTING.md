@@ -54,6 +54,12 @@ locking the new behavior. Tests assert **exact** type/message/span (never bare
 the code under test (see `patterns.md` §8 and `critical-invariants.md` Test
 standards).
 
+Tests live inline in the package's `_test.go` files. Fixture files
+(`test/fixtures/...`, external golden files, or table data stored outside Go
+source) are an **antipattern**: they hide the input, expectation, and
+assertion from the test and make reviews noisy. Use inline table-driven
+tests; convert an existing fixture-based test when you touch it.
+
 ```sh
 go build ./... && go vet ./...
 gofmt -l .                 # must print nothing (see below)

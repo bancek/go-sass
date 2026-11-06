@@ -54,6 +54,21 @@ stops for review first.
   file and ignore the sync twin's diff entirely. The sync file is generated
   output; the two twins resolve to the same Go file.
 
+## No hacks, no shortcuts
+
+Go code must match Dart **line by line**. Port the same branches, checks,
+helper calls, messages, spans, ordering, and error paths. Do not combine
+conditions, skip guards, replace a helper with a Go idiom, or “simplify”
+control flow. Tests passing is not evidence of parity.
+
+The only allowed differences are language mechanics: Dart exceptions become
+Go `error` returns, nullable types become pointers, and names follow Go
+conventions. Any behavior or structure that cannot match Dart is a
+divergence and belongs in `docs/divergences.md` — never preserved silently.
+
+If a unit exposes a pre-existing Go shortcut in the code it touches, fix it in
+that same unit; do not leave it for a later cleanup.
+
 ## Target discovery and pin resolution
 
 `TARGET` below is the upstream release tag, for example `1.106.0`. Run from
@@ -114,7 +129,8 @@ invent a release commit that rust-sass does not have.
 2. For Dart sync/async twin files, read the **async** file only (the sync
    file is generated).
 3. Port line-by-line: same control flow, helpers, messages, ordering, spans,
-   and error paths. No behavioral or structural shortcuts.
+   and error paths. No behavioral or structural shortcuts. A Go-only guard,
+   fallback, or simplification is a bug even if the tests pass.
 4. Add failing-first internal tests in the touched package, covering the new
    behavior and its exact messages and error spans.
 5. Advance the `sass-spec` pin to that unit's spec commit, never past an
@@ -125,8 +141,9 @@ invent a release commit that rust-sass does not have.
    - the touched package's tests
    - the affected `sass-spec` directories
    - differential A/B against the target dart-sass binary
-7. Fold any pre-existing port bug exposed by this unit into this same commit.
-   Do not create a standalone fix commit before the branch has been pushed.
+7. Fold any pre-existing port bug or shortcut exposed by this unit into this
+   same commit. Do not create a standalone fix commit before the branch has
+   been pushed.
 8. Advance `PORTED_FROM` and the `dart-sass` submodule to the ported commit.
 9. Commit only that unit.
 
@@ -231,7 +248,9 @@ Every unit commit and every release commit is reviewed before it is created.
 
 1. Stage explicit paths (`git add <paths>`, never `git add -A`).
 2. Run the unit or release gates: fmt, vet, tests, focused `sass-spec`
-   directories, and differential A/B where the behavior is observable.
+   directories, and differential A/B where the behavior is observable. Then
+   diff the Go against the Dart function line-by-line; tests passing is not
+   proof of parity, and hacks or shortcuts are rejected.
 3. Show the staged summary (`git diff --cached --stat`), the pins being moved,
    the new/changed internal tests, the focused spec results, and any
    differential output.
