@@ -1217,15 +1217,16 @@ func (v *EvaluateVisitor) loadedUrlsList() []*sassurl.URL {
 // built for the rest parameter, or nil when there is none.
 //
 // Matches Dart: the binding half of _runUserDefinedCallable. Positional values
-// bind in order using their declaration-site nodes. Remaining parameters fall
-// back to named, then to evaluated slash-stripped defaults (stripped at the
-// default's declaration-site node), then fail with a missing-argument
-// multi-span error. Excess positionals plus leftover named pack into a
-// SassArgumentList under the rest parameter — an undecided separator becomes
-// comma — whose keyword-accessed flag the caller checks for unused keywords.
-// A nil params with any arguments panics; callers verify arity first.
+// bind in order using their declaration-site nodes, named parameters use the
+// argument's declaration-site node, and defaults use the default expression's
+// node. A rest parameter binds to the invocation node. Remaining parameters
+// fail with a missing-argument multi-span error. Excess positionals plus
+// leftover named pack into a SassArgumentList under the rest parameter — an
+// undecided separator becomes comma — whose keyword-accessed flag the caller
+// checks for unused keywords. A nil params with any arguments panics; callers
+// verify arity first.
 // Matches Dart: argument binding inside _runUserDefinedCallable
-func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, decl value.CallableDeclaration, args []value.Value, kwargs *orderedmap.LinkedMap[string, value.Value], positionalNodes []sasscommon.AstNode, namedNodes map[string]sasscommon.AstNode, separator value.ListSeparator) (*value.SassArgumentList, error) {
+func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, nodeWithSpan sasscommon.AstNode, args []value.Value, kwargs *orderedmap.LinkedMap[string, value.Value], positionalNodes []sasscommon.AstNode, namedNodes map[string]sasscommon.AstNode, separator value.ListSeparator) (*value.SassArgumentList, error) {
 	if params == nil {
 		if len(args) > 0 || kwargs.Len() > 0 {
 			panic("no parameters defined but arguments provided.")
@@ -1244,20 +1245,27 @@ func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, decl value.
 	// Bind positional arguments by index, each under its declaration-site node.
 	// Dart: _environment.setLocalVariable(parameters[i].name, evaluated.positional[i], evaluated.positionalNodes[i])
 	for i := range minLength {
-		var node sasscommon.AstNode = decl
-		if i < len(positionalNodes) {
-			node = positionalNodes[i]
-		}
-		v.env.SetLocalVariable(parameters[i].Name(), args[i], node)
+		v.env.SetLocalVariable(parameters[i].Name(), args[i], positionalNodes[i])
 	}
 
 	// Bind named arguments and defaults for remaining parameters: named wins,
 	// then the evaluated slash-stripped default, then a missing-argument error.
+	// The variable node matches Dart's
+	// `evaluated.namedNodes[parameter.name] ?? _expressionNode(parameter.defaultValue!)`,
+	// so source maps point at the argument or the default expression.
 	for i := len(args); i < len(parameters); i++ {
 		param := parameters[i]
 		if val, ok := kwargs.Get(param.Name()); ok {
 			kwargs.Delete(param.Name())
-			v.env.SetLocalVariable(param.Name(), val, decl)
+			node := namedNodes[param.Name()]
+			if node == nil {
+				// Dart: evaluated.namedNodes[parameter.name] ?? _expressionNode(parameter.defaultValue!)
+				node, err = v.expressionNode(param.DefaultValue)
+				if err != nil {
+					return nil, err
+				}
+			}
+			v.env.SetLocalVariable(param.Name(), val, node)
 		} else if param.DefaultValue != nil {
 			val, err := v.eval(param.DefaultValue)
 			if err != nil {
@@ -1273,7 +1281,7 @@ func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, decl value.
 			if err != nil {
 				return nil, err
 			}
-			v.env.SetLocalVariable(param.Name(), cleaned, decl)
+			v.env.SetLocalVariable(param.Name(), cleaned, node)
 		} else {
 			return nil, &sasscommon.MultiSpanSassScriptException{
 				Message:      fmt.Sprintf("Missing argument $%s.", param.Name()),
@@ -1301,7 +1309,7 @@ func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, decl value.
 		if err != nil {
 			return nil, err
 		}
-		v.env.SetLocalVariable(*params.RestParameter, argList, decl)
+		v.env.SetLocalVariable(*params.RestParameter, argList, nodeWithSpan)
 		return argList, nil
 	}
 
@@ -1481,7 +1489,7 @@ func (v *EvaluateVisitor) runUserDefinedCallable(
 					return nil, err
 				}
 
-				argList, err := v.bindArguments(c.Arguments(), c.Declaration(), positional, named, positionalNodes, namedNodes, separator)
+				argList, err := v.bindArguments(c.Arguments(), nodeWithSpan, positional, named, positionalNodes, namedNodes, separator)
 				if err != nil {
 					return nil, err
 				}

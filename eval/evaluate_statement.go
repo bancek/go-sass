@@ -1669,9 +1669,14 @@ func (v *EvaluateVisitor) VisitIncludeRule(stmt *value.IncludeRule) (value.Value
 		contentCallable = NewUserDefinedCallable(stmt.Content, v.env.Closure(), v.inDependency)
 	}
 
+	// Dart: AstNode.fake(() => node.spanWithoutContent)
+	nodeWithSpanWithoutContent := sasscommon.NewFakeAstNode(func() (sasscommon.FileSpan, error) {
+		return stmt.SpanWithoutContent()
+	})
+
 	// Pass the raw argument list; evaluation happens inside applyMixin and
 	// runBuiltInCallable.
-	return nil, v.applyMixin(mix, contentCallable, stmt, stmt.Arguments())
+	return nil, v.applyMixin(mix, contentCallable, stmt, nodeWithSpanWithoutContent, stmt.Arguments())
 }
 
 // runBuiltInCallable evaluates arguments and invokes a built-in callable,
@@ -1829,9 +1834,11 @@ func (v *EvaluateVisitor) runBuiltInCallable(callable *functions.BuiltInCallable
 // error span so @content failures point at the @include.
 //
 // Matches Dart: _EvaluateVisitor._applyMixin (evaluate.dart @include
-// section); the two nodeWithSpan arguments (with and without content)
-// collapse into one here.
-func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable *functions.UserDefinedCallable, nodeWithSpan sasscommon.AstNode, arguments *value.ArgumentList) error {
+// section). nodeWithSpan is the full invocation, used only for the
+// undefined-mixin error; everything that runs the mixin uses
+// nodeWithSpanWithoutContent, so rest-parameter variable nodes and error
+// spans stop before an attached content block, as in Dart.
+func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable *functions.UserDefinedCallable, nodeWithSpan sasscommon.AstNode, nodeWithSpanWithoutContent sasscommon.AstNode, arguments *value.ArgumentList) error {
 	if mix == nil {
 		span, err := nodeWithSpan.Span()
 		if err != nil {
@@ -1857,7 +1864,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 			if err != nil {
 				return err
 			}
-			nwsSpan, err := nodeWithSpan.Span()
+			nwsSpan, err := nodeWithSpanWithoutContent.Span()
 			if err != nil {
 				return err
 			}
@@ -1879,7 +1886,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 		}
 		oldInMixin := v.env.InMixin()
 		v.env.SetInMixin(true)
-		_, err := v.runBuiltInCallable(c, nodeWithSpan, arguments)
+		_, err := v.runBuiltInCallable(c, nodeWithSpanWithoutContent, arguments)
 		v.env.SetInMixin(oldInMixin)
 		v.env.SetContent(oldContent)
 		return err
@@ -1888,7 +1895,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 		// Mixins declared without content reject a content block with a
 		// multi-span invocation/declaration error.
 		if mr, isMixin := c.Declaration().(*value.MixinRule); contentCallable != nil && c.Declaration() != nil && isMixin && !mr.HasContent() {
-			nwsSpan, err := nodeWithSpan.Span()
+			nwsSpan, err := nodeWithSpanWithoutContent.Span()
 			if err != nil {
 				return err
 			}
@@ -1903,7 +1910,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 				Trace: v.stackTrace(nwsSpan),
 			}
 		}
-		_, err := v.runUserDefinedCallable(c, arguments, nodeWithSpan, func() (value.Value, error) {
+		_, err := v.runUserDefinedCallable(c, arguments, nodeWithSpanWithoutContent, func() (value.Value, error) {
 			oldContent := v.env.Content()
 			if contentCallable != nil {
 				v.env.SetContent(contentCallable)
@@ -1914,7 +1921,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 			v.env.SetInMixin(true)
 
 			for _, child := range c.Declaration().GetChildren() {
-				if _, err := addErrorSpan(v, nodeWithSpan, func() (value.Value, error) {
+				if _, err := addErrorSpan(v, nodeWithSpanWithoutContent, func() (value.Value, error) {
 					return v.visitStatement(child)
 				}); err != nil {
 					v.env.SetInMixin(oldInMixin)

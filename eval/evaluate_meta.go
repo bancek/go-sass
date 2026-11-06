@@ -631,7 +631,7 @@ func (v *EvaluateVisitor) createMetaMixins(env *sassenv.Environment) []sasscalla
 				content = c.(*functions.UserDefinedCallable)
 			}
 
-			err = v.applyMixin(callable, content, callableNode, invocation)
+			err = v.applyMixin(callable, content, callableNode, callableNode, invocation)
 			return nil, err
 		}),
 	}

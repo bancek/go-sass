@@ -89,6 +89,62 @@ func TestSourceMapGeneration(t *testing.T) {
 	}
 }
 
+// Mixin parameters must bind to the same AST nodes as Dart: a rest parameter
+// to the invocation, a named parameter to its argument, and a default to the
+// default expression. Otherwise declaration source maps point at the mixin
+// declaration instead of the call site. Mappings are Dart goldens.
+func TestSourceMapMixinArgumentSpans(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{
+			name:   "rest parameter",
+			source: "@mixin m($args...) {\n  a { b: $args; }\n}\n.x { @include m(1, 2); }\n",
+			want:   "AACE;EAAI,GAED",
+		},
+		{
+			name:   "default parameter",
+			source: "@mixin m($x: red) {\n  a { color: $x; }\n}\n.x { @include m; }\n",
+			want:   "AACE;EAAI,OADO",
+		},
+		{
+			name:   "named parameter",
+			source: "@mixin m($x: red) {\n  a { color: $x; }\n}\n.x { @include m($x: blue); }\n",
+			want:   "AACE;EAAI,OAEc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := CompileString(tt.source, sassio.NewDefaultIO(), &CompileOptions{
+				SourceMap: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sm := result.SourceMap()
+			if sm == nil {
+				t.Fatal("expected source map")
+			}
+			jsonBytes, err := sm.JSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var parsed struct {
+				Mappings string `json:"mappings"`
+			}
+			if err := json.Unmarshal(jsonBytes, &parsed); err != nil {
+				t.Fatal(err)
+			}
+			if parsed.Mappings != tt.want {
+				t.Errorf("mappings = %q, want %q", parsed.Mappings, tt.want)
+			}
+		})
+	}
+}
+
 func TestSourceMapDisabled(t *testing.T) {
 	result, err := CompileString(`a { color: red; }`, sassio.NewDefaultIO(), nil)
 	if err != nil {
