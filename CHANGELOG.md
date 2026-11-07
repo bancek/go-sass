@@ -1,9 +1,29 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.105.2`); the
+Release history. Tags track the pinned dart-sass version (`v1.106.0`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.106.0
+
+- Preserve CSS escapes as written in statement contexts and normalize them only
+  where SassScript observes them. Selectors, identifiers, custom properties,
+  unknown at-rules, and `@keyframes` names keep their original escape spelling;
+  invalid escapes normalize to U+FFFD, while `\0` alone keeps the historical
+  `\0 ` form. Attribute values containing backslashes stay quoted, and
+  exponent-like units serialize with an escaped `\65`.
+- Fix crashes and inaccurate source spans in interpolations containing patterns
+  like `// */`, including span expansion and warning/error spans.
+- Fix an indented-syntax crash when the first statement is indented and appears
+  after the first line; the error now highlights only that line's indentation.
+- Throw a multi-span `Duplicate parameter.` error when a rest parameter reuses a
+  normal parameter name, instead of silently shadowing it.
+- `FileSpan.trim()`, `trimLeft()`, and `trimRight()` now skip comments as well
+  as whitespace, so diagnostics no longer highlight trailing comments.
+- Match dart-sass 1.106.0's embedded host release.
+- Byte-identical output to Dart Sass 1.106.0 (14382/14388 spec tests passing,
+  6 todo).
 
 ## 1.105.2
 

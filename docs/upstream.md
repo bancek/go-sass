@@ -9,7 +9,7 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `56608242a996f869fc1903c68fd4c68c8d97daa3` (2026-10-16, `PORTED_FROM`) |
+| dart-sass commit    | `2ea4fc07b8560ba57e1657d9759b6ce8e89a64dd` (2026-10-20, `PORTED_FROM`) |
 | dart-sass version   | 1.106.0                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
@@ -45,10 +45,10 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `56608242` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `dart-sass`          | `2ea4fc07` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
 | `sass-spec`          | `fc9b6959`                   | the spec suite expectations                                                               |
 | `sass`               | `88142a47`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
-| `embedded-host-node` | `0ce7457` (host `1.105.2`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
+| `embedded-host-node` | `5d64b1e` (host `1.106.0`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
 
 Update this table together with `PORTED_FROM` on every sync.
