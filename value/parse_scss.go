@@ -181,8 +181,9 @@ func NewScssParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Scss
 		}
 	}
 	p.StylesheetParser.statements = func(statement func() (Statement, error)) ([]Statement, error) {
-		// Consumes top-level statements until EOF. The statement callback may
-		// return nil for input that is consumed but not listed.
+		// Consumes top-level statements at the root of the stylesheet until EOF.
+		// The statement callback may return nil for input that is consumed but
+		// not listed.
 		var stmts []Statement
 		if err := p.whitespaceWithoutComments(true); err != nil {
 			return nil, err

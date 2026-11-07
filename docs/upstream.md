@@ -9,7 +9,7 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `a05866caeb42db34c3df1181eb5bcf41534549c8` (2026-10-16, `PORTED_FROM`) |
+| dart-sass commit    | `34c8e6b1fc854b4aabc907a0c427b854ee9ec35b` (2026-10-16, `PORTED_FROM`) |
 | dart-sass version   | 1.106.0                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
@@ -45,8 +45,8 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `a05866ca` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
-| `sass-spec`          | `6cca6af5`                   | the spec suite expectations                                                               |
+| `dart-sass`          | `34c8e6b1` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `sass-spec`          | `c7c83809`                   | the spec suite expectations                                                               |
 | `sass`               | `88142a47`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
 | `embedded-host-node` | `0ce7457` (host `1.105.2`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |

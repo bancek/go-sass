@@ -143,7 +143,7 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 				return err
 			}
 		}
-		peekIndent, err := p.sassPeekIndentation()
+		peekIndent, err := p.sassPeekIndentation(false)
 		if err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 		if !p.StylesheetParser.atEndOfStatement() {
 			return false, nil
 		}
-		peek, err := p.sassPeekIndentation()
+		peek, err := p.sassPeekIndentation(false)
 		if err != nil {
 			return false, err
 		}
@@ -183,7 +183,7 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 	// the next line's indentation first and rewinds (scanner plus indentation
 	// cache) when the line is not an `@else` at ifIndentation.
 	p.StylesheetParser.scanElse = func(ifIndentation int) (bool, error) {
-		peek, err := p.sassPeekIndentation()
+		peek, err := p.sassPeekIndentation(false)
 		if err != nil {
 			return false, err
 		}
@@ -195,7 +195,7 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 		startNextIndentation := p.nextIndentation
 		startNextIndentationEnd := p.nextIndentationEnd
 
-		if _, err := p.sassReadIndentation(); err != nil {
+		if _, err := p.sassReadIndentation(false); err != nil {
 			return false, err
 		}
 		if p.scanner.ScanChar('@') {
@@ -237,9 +237,23 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 	// statements consumes the whole document: leading indentation is illegal
 	// and every top-level statement must return to indentation zero.
 	p.StylesheetParser.statements = func(statement func() (Statement, error)) ([]Statement, error) {
-		next := p.scanner.PeekChar(0)
-		if next == '\t' || next == ' ' {
-			return nil, p.scanner.Error("Indenting at the beginning of the document is illegal.", 0, p.scanner.Position())
+		indentation, err := p.sassReadIndentation(true)
+		if err != nil {
+			return nil, err
+		}
+		if indentation != 0 {
+			text := p.scanner.Text()
+			lastNewline := p.scanner.Position()
+			for ; lastNewline >= 0; lastNewline-- {
+				if util.IsNewline(int(text[lastNewline])) {
+					break
+				}
+			}
+			return nil, p.scanner.Error(
+				"Indenting at the beginning of the document is illegal.",
+				lastNewline+1,
+				p.scanner.Position()-(lastNewline+1),
+			)
 		}
 
 		var stmts []Statement
@@ -251,7 +265,7 @@ func NewSassParser(contents []byte, url *sassurl.URL, parseSelectors bool) *Sass
 			if child != nil {
 				stmts = append(stmts, child)
 			}
-			if indentation, err := p.sassReadIndentation(); err != nil {
+			if indentation, err := p.sassReadIndentation(false); err != nil {
 				return stmts, err
 			} else if indentation != 0 {
 				return stmts, fmt.Errorf("internal error: expected indentation 0, got %d", indentation)
@@ -341,7 +355,7 @@ outer:
 			}
 			sb.WriteByte('\n')
 
-			peek, err := p.sassPeekIndentation()
+			peek, err := p.sassPeekIndentation(false)
 			if err != nil {
 				return nil, err
 			}
@@ -352,13 +366,13 @@ outer:
 			if peek == parentIndentation {
 				if p.scanner.PeekChar(1+parentIndentation) == '/' &&
 					p.scanner.PeekChar(2+parentIndentation) == '/' {
-					if _, err := p.sassReadIndentation(); err != nil {
+					if _, err := p.sassReadIndentation(false); err != nil {
 						return nil, err
 					}
 				}
 				break
 			}
-			if _, err := p.sassReadIndentation(); err != nil {
+			if _, err := p.sassReadIndentation(false); err != nil {
 				return nil, err
 			}
 		}
@@ -410,7 +424,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 				return nil, err
 			}
 			if util.IsNewline(p.scanner.PeekChar(0)) {
-				if _, err := p.sassReadIndentation(); err != nil {
+				if _, err := p.sassReadIndentation(false); err != nil {
 					return nil, err
 				}
 				buffer.WriteCharCode(' ')
@@ -466,7 +480,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 					}
 
 					for util.IsNewline(p.scanner.PeekChar(0)) {
-						peek, err := p.sassPeekIndentation()
+						peek, err := p.sassPeekIndentation(false)
 						if err != nil {
 							return nil, err
 						}
@@ -485,7 +499,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 								return nil, err
 							}
 						}
-						if _, err := p.sassReadIndentation(); err != nil {
+						if _, err := p.sassReadIndentation(false); err != nil {
 							return nil, err
 						}
 						if err := p.whitespace(false); err != nil {
@@ -528,7 +542,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 		}
 	endInner:
 
-		peek, err := p.sassPeekIndentation()
+		peek, err := p.sassPeekIndentation(false)
 		if err != nil {
 			return nil, err
 		}
@@ -551,7 +565,7 @@ func (p *SassParser) sassLoudComment() (Statement, error) {
 			buffer.Write(" *")
 		}
 
-		if _, err := p.sassReadIndentation(); err != nil {
+		if _, err := p.sassReadIndentation(false); err != nil {
 			return nil, err
 		}
 	}
@@ -701,14 +715,14 @@ func (p *SassParser) sassWhileIndentedLower(body func() error) error {
 	parentIndentation := p.currentIndentation
 	var childIndentation *int
 	for {
-		peek, err := p.sassPeekIndentation()
+		peek, err := p.sassPeekIndentation(false)
 		if err != nil {
 			return err
 		}
 		if peek <= parentIndentation {
 			break
 		}
-		indentation, err := p.sassReadIndentation()
+		indentation, err := p.sassReadIndentation(false)
 		if err != nil {
 			return err
 		}
@@ -733,10 +747,14 @@ func (p *SassParser) sassWhileIndentedLower(body func() error) error {
 // current level. It computes the peek cache first when empty, then seeks the
 // scanner to the cached next-line start and clears the cache.
 //
+// This requires that the next character be a newline unless startOfStylesheet
+// is true, in which case this treats the beginning of the stylesheet as a
+// virtual newline.
+//
 // Matches Dart: SassParser._readIndentation
-func (p *SassParser) sassReadIndentation() (int, error) {
+func (p *SassParser) sassReadIndentation(startOfStylesheet bool) (int, error) {
 	if p.nextIndentation == nil {
-		if _, err := p.sassPeekIndentation(); err != nil {
+		if _, err := p.sassPeekIndentation(startOfStylesheet); err != nil {
 			return 0, err
 		}
 	}
@@ -753,13 +771,13 @@ func (p *SassParser) sassReadIndentation() (int, error) {
 // without consuming input.
 //
 // The result is cached in nextIndentation/nextIndentationEnd: a missing
-// newline where one is required is an error, blank lines are skipped, EOF
-// counts as indentation zero, and the first observed indent character settles
-// the document's spaces-vs-tabs choice. The scanner is always rewound to the
-// entry position.
+// newline where one is required (see startOfStylesheet) is an error, blank
+// lines are skipped, EOF counts as indentation zero, and the first observed
+// indent character settles the document's spaces-vs-tabs choice. The scanner
+// is always rewound to the entry position.
 //
 // Matches Dart: SassParser._peekIndentation
-func (p *SassParser) sassPeekIndentation() (int, error) {
+func (p *SassParser) sassPeekIndentation(startOfStylesheet bool) (int, error) {
 	if p.nextIndentation != nil {
 		return *p.nextIndentation, nil
 	}
@@ -773,12 +791,14 @@ func (p *SassParser) sassPeekIndentation() (int, error) {
 	}
 
 	start := p.scanner.State()
-	ok, err := p.scanCharIf(util.IsNewline)
-	if err != nil {
-		return 0, err
-	}
-	if !ok {
-		return 0, p.scanner.Error("Expected newline.", -1, 0)
+	if !startOfStylesheet {
+		ok, err := p.scanCharIf(util.IsNewline)
+		if err != nil {
+			return 0, err
+		}
+		if !ok {
+			return 0, p.scanner.Error("Expected newline.", -1, 0)
+		}
 	}
 
 	var containsTab, containsSpace bool

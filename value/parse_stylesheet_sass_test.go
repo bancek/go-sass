@@ -17,7 +17,7 @@ func newTestSassParserIndent(text string) *SassParser {
 
 func TestParseSassPeekIndentationZero(t *testing.T) {
 	p := newTestSassParserIndent("\n")
-	indent, err := p.sassPeekIndentation()
+	indent, err := p.sassPeekIndentation(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +123,51 @@ func TestParseSassStyleRuleSelectorTrailingCommaAtEOF(t *testing.T) {
 	}
 	if len(sheet.GetChildren()) != 1 {
 		t.Fatalf("children len = %d, want 1", len(sheet.GetChildren()))
+	}
+}
+
+func TestParseSassIndentedFirstStatementSpan(t *testing.T) {
+	// The error span covers the indentation of the first non-blank line, not
+	// the whole document start. A document whose first line is blank or
+	// whitespace-only must still be rejected.
+	tests := []struct {
+		source string
+		start  int
+		end    int
+	}{
+		{"  a: b\n", 0, 2},
+		{"\n  a: b\n", 1, 3},
+		{"  \t\n  a: b\n", 4, 6},
+	}
+
+	for _, tt := range tests {
+		p := newTestSassParserIndent(tt.source)
+		_, err := p.statements(func() (Statement, error) { return nil, nil })
+		if err == nil {
+			t.Errorf("source %q: expected an error", tt.source)
+			continue
+		}
+		if err.Error() != "Indenting at the beginning of the document is illegal." {
+			t.Errorf("source %q: error = %q", tt.source, err.Error())
+			continue
+		}
+		var scanErr *sasscommon.ScanError
+		if !errors.As(err, &scanErr) {
+			t.Errorf("source %q: error = %T, want *sasscommon.ScanError", tt.source, err)
+			continue
+		}
+		start, startErr := scanErr.Span.StartLocation()
+		if startErr != nil {
+			t.Fatal(startErr)
+		}
+		end, endErr := scanErr.Span.EndLocation()
+		if endErr != nil {
+			t.Fatal(endErr)
+		}
+		if start.Offset != tt.start || end.Offset != tt.end {
+			t.Errorf("source %q: span = (%d, %d), want (%d, %d)",
+				tt.source, start.Offset, end.Offset, tt.start, tt.end)
+		}
 	}
 }
 
