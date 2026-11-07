@@ -189,16 +189,83 @@ func TestAtRuleParameterListDuplicate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for duplicate parameter")
 	}
-	want := strings.Join([]string{
-		`Error: Duplicate parameter.`,
-		`  ╷`,
-		`1 │ ($a, $a)`,
-		`  │      ^^`,
-		`  ╵`,
-		`  - 1:6  root stylesheet`,
-	}, "\n")
-	if err.Error() != want {
-		t.Errorf("error = %q, want %q", err.Error(), want)
+	multiSpan, ok := err.(*sasscommon.MultiSpanSassFormatException)
+	if !ok {
+		t.Fatalf("error = %T, want *sasscommon.MultiSpanSassFormatException", err)
+	}
+	if multiSpan.Message != "Duplicate parameter." {
+		t.Errorf("message = %q, want %q", multiSpan.Message, "Duplicate parameter.")
+	}
+	if multiSpan.PrimaryLabel != "first" {
+		t.Errorf("primary label = %q, want %q", multiSpan.PrimaryLabel, "first")
+	}
+	start, startErr := multiSpan.Span.StartLocation()
+	if startErr != nil {
+		t.Fatal(startErr)
+	}
+	end, endErr := multiSpan.Span.EndLocation()
+	if endErr != nil {
+		t.Fatal(endErr)
+	}
+	if start.Offset != 1 || end.Offset != 3 {
+		t.Errorf("primary span = (%d, %d), want (1, 3)", start.Offset, end.Offset)
+	}
+	assertSingleSecondParameterSpan(t, multiSpan.Secondary, 5, 7)
+}
+
+func TestAtRuleParameterListDuplicateRest(t *testing.T) {
+	p := newTestStylesheetParserAtRule("($a, $a...)")
+	_, err := p.parameterList()
+	if err == nil {
+		t.Fatal("expected error for duplicate rest parameter")
+	}
+	multiSpan, ok := err.(*sasscommon.MultiSpanSassFormatException)
+	if !ok {
+		t.Fatalf("error = %T, want *sasscommon.MultiSpanSassFormatException", err)
+	}
+	if multiSpan.Message != "Duplicate parameter." {
+		t.Errorf("message = %q, want %q", multiSpan.Message, "Duplicate parameter.")
+	}
+	if multiSpan.PrimaryLabel != "first" {
+		t.Errorf("primary label = %q, want %q", multiSpan.PrimaryLabel, "first")
+	}
+	start, startErr := multiSpan.Span.StartLocation()
+	if startErr != nil {
+		t.Fatal(startErr)
+	}
+	end, endErr := multiSpan.Span.EndLocation()
+	if endErr != nil {
+		t.Fatal(endErr)
+	}
+	if start.Offset != 1 || end.Offset != 3 {
+		t.Errorf("primary span = (%d, %d), want (1, 3)", start.Offset, end.Offset)
+	}
+	assertSingleSecondParameterSpan(t, multiSpan.Secondary, 5, 10)
+}
+
+func assertSingleSecondParameterSpan(t *testing.T, secondary *sasscommon.SecondarySpans, wantStart, wantEnd int) {
+	t.Helper()
+	var count int
+	for span, label := range secondary.Entries() {
+		count++
+		if label != "second" {
+			t.Errorf("secondary label = %q, want %q", label, "second")
+		}
+		start, err := span.StartLocation()
+		if err != nil {
+			t.Fatal(err)
+		}
+		end, err := span.EndLocation()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if start.Offset != wantStart || end.Offset != wantEnd {
+			t.Errorf("secondary span = (%d, %d), want (%d, %d)",
+				start.Offset, end.Offset, wantStart, wantEnd)
+		}
+	}
+	if count != 1 {
+		t.Errorf("secondary span count = %d, want 1", count)
 	}
 }
 

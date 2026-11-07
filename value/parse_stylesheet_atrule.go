@@ -1940,7 +1940,7 @@ func (p *StylesheetParser) parameterList() (*ParameterList, error) {
 		return nil, err
 	}
 	var parameters []*Parameter
-	named := map[string]struct{}{}
+	named := map[string]int{}
 	var restParameter string
 	for p.scanner.PeekChar(0) == '$' {
 		variableStart := p.scanner.State()
@@ -1977,25 +1977,51 @@ func (p *StylesheetParser) parameterList() (*ParameterList, error) {
 					return nil, err
 				}
 			}
+
+			if firstIndex, ok := named[name]; ok {
+				firstSpan, err := parameters[firstIndex].Span()
+				if err != nil {
+					return nil, err
+				}
+				restSpan, err := p.spanFrom(variableStart)
+				if err != nil {
+					return nil, err
+				}
+				return nil, p.multiSpanError(
+					"Duplicate parameter.",
+					firstSpan,
+					"first",
+					sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{
+						Span:  restSpan,
+						Label: "second",
+					}),
+				)
+			}
 			restParameter = name
 			break
 		}
 
-		paramSpan, err := p.spanFrom(variableStart)
+		span, err := p.spanFrom(variableStart)
 		if err != nil {
 			return nil, err
 		}
-		parameters = append(parameters, NewParameter(name, paramSpan, defaultValue))
-		if _, exists := named[name]; exists {
-			dupSpan, err := parameters[len(parameters)-1].Span()
+		if firstIndex, ok := named[name]; ok {
+			firstSpan, err := parameters[firstIndex].Span()
 			if err != nil {
 				return nil, err
 			}
-			if err := p.error("Duplicate parameter.", dupSpan, nil); err != nil {
-				return nil, err
-			}
+			return nil, p.multiSpanError(
+				"Duplicate parameter.",
+				firstSpan,
+				"first",
+				sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{
+					Span:  span,
+					Label: "second",
+				}),
+			)
 		}
-		named[name] = struct{}{}
+		named[name] = len(parameters)
+		parameters = append(parameters, NewParameter(name, span, defaultValue))
 
 		if !p.scanner.ScanChar(',') {
 			break
