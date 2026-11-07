@@ -196,78 +196,6 @@ func (s SimpleFileSpan) Contains(target FileSpan) (bool, error) {
 	return s.end >= targetEnd.Offset, nil
 }
 
-// Trim returns this span with whitespace stripped from both sides,
-// implemented as a left trim followed by a right trim.
-//
-// Matches Dart: SpanExtensions.trim
-func (s SimpleFileSpan) Trim() (FileSpan, error) {
-	result, err := s.TrimLeft()
-	if err != nil {
-		return nil, err
-	}
-	return result.TrimRight()
-}
-
-// TrimLeft returns this span with leading whitespace stripped. A span with
-// no leading whitespace returns itself unchanged.
-//
-// Matches Dart: SpanExtensions.trimLeft
-func (s SimpleFileSpan) TrimLeft() (FileSpan, error) {
-	return trimLeftSpan(s)
-}
-
-// TrimRight returns this span with trailing whitespace stripped. The end
-// offset backs up over ASCII whitespace one byte at a time; a span with no
-// trailing whitespace returns itself unchanged.
-//
-// Matches Dart: SpanExtensions.trimRight
-func (s SimpleFileSpan) TrimRight() (FileSpan, error) {
-	text, err := s.SpanText()
-	if err != nil {
-		return nil, err
-	}
-	end := len(text)
-	for end > 0 && isWhitespaceByte(text[end-1]) {
-		end--
-	}
-	if end == len(text) {
-		return s, nil
-	}
-	return SimpleFileSpan{file: s.file, start: s.start, end: s.start + end}, nil
-}
-
-// WithoutInitialAtRule returns the subspan after a leading at-rule
-// (@ followed by an identifier) plus any whitespace following it. A span
-// that does not start with "@" is a scan failure, matching Dart's
-// expectChar behavior.
-//
-// Matches Dart: SpanExtensions.withoutInitialAtRule
-func (s SimpleFileSpan) WithoutInitialAtRule() (FileSpan, error) {
-	text, err := s.SpanText()
-	if err != nil {
-		return nil, err
-	}
-	if len(text) == 0 || text[0] != '@' {
-		return nil, &ScanError{Message: "Expected @.", Span: s}
-	}
-	pos, err := scanIdent(text, 1, s)
-	if err != nil {
-		return nil, err
-	}
-	if pos >= len(text) {
-		return s, nil
-	}
-	result, err := s.Subspan(pos, len(text))
-	if err != nil {
-		return nil, err
-	}
-	result2, err := trimLeftSpan(result)
-	if err != nil {
-		return nil, err
-	}
-	return result2, nil
-}
-
 // scanIdent advances pos past one CSS identifier, folding backslash escapes
 // into the identifier the way Dart's string scanner does: a backslash
 // consumes its escape sequence, name characters are taken literally, and
@@ -352,30 +280,6 @@ func isHex(b byte) bool {
 // Matches Dart: NullableCharacterExtension.isWhitespace
 func isWhitespaceByte(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f'
-}
-
-// trimLeftSpan strips leading whitespace shared-helper style: it counts the
-// whitespace prefix, returns the span unchanged when there is none, and
-// otherwise slices from the first non-whitespace byte to the span end.
-//
-// Matches Dart: SpanExtensions.trimLeft
-func trimLeftSpan(s FileSpan) (FileSpan, error) {
-	text, err := s.SpanText()
-	if err != nil {
-		return nil, err
-	}
-	start := 0
-	for start < len(text) && isWhitespaceByte(text[start]) {
-		start++
-	}
-	if start == 0 {
-		return s, nil
-	}
-	length, err := s.Length()
-	if err != nil {
-		return nil, err
-	}
-	return s.Subspan(start, length)
 }
 
 // InitialQuoted returns the span of the quoted string at the start of this

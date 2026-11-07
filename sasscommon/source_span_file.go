@@ -47,17 +47,11 @@ type FileSpan interface {
 	// into a new span. Out-of-range bounds report a RangeError, and a
 	// full-range slice returns the span itself.
 	Subspan(start, end int) (FileSpan, error)
-	TrimRight() (FileSpan, error)
 	Before(FileSpan) (FileSpan, error)
 	After(FileSpan) (FileSpan, error)
 	Between(FileSpan) (FileSpan, error)
 	Contains(FileSpan) (bool, error)
 	String() (string, error)
-
-	// WithoutInitialAtRule returns a subspan excluding an initial at-rule and
-	// any whitespace after it.
-	// Matches Dart: SpanExtensions.withoutInitialAtRule
-	WithoutInitialAtRule() (FileSpan, error)
 
 	// InitialQuoted returns the span of the quoted text at the start of this
 	// span. This span must start with " or '.

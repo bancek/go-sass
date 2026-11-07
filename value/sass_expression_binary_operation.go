@@ -294,11 +294,11 @@ func (e *BinaryOperationExpression) OperatorSpan() (sasscommon.FileSpan, error) 
 			if err != nil {
 				return nil, err
 			}
-			return sasscommon.NewSimpleFileSpan(
+			return trimSpan(sasscommon.NewSimpleFileSpan(
 				file,
 				leftEnd.Offset,
 				rightStart.Offset,
-			).Trim()
+			))
 		}
 	}
 	return e.Span()

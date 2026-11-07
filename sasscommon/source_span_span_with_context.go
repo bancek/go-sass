@@ -176,59 +176,6 @@ func columnAt(text string, offset int) int {
 	return offset - lastNewline - 1
 }
 
-// TrimRight returns this span with all trailing whitespace trimmed.
-//
-// Matches Dart: SpanExtensions.trimRight (dart-sass lib/src/util/span.dart).
-// A span with no trailing whitespace returns itself unchanged. This mirrors
-// SimpleFileSpan.TrimRight (util_span.go owns the FileSpan-backed logic);
-// this copy serves highlighter-synthesized spans with no file.
-func (s SourceSpanWithContext) TrimRight() (FileSpan, error) {
-	text := s.text
-	end := len(text)
-	for end > 0 && isWhitespaceByte(text[end-1]) {
-		end--
-	}
-	if end == len(text) {
-		return s, nil
-	}
-	newEnd := SourceLocation{
-		Offset: s.end.Offset - (len(text) - end),
-		Line:   s.end.Line,
-		Column: columnAt(s.text, end),
-	}
-	return SourceSpanWithContext{start: s.start, end: newEnd, text: text[:end], context: s.context, url: s.url}, nil
-}
-
-// TrimLeft returns this span with all leading whitespace trimmed.
-//
-// Matches Dart: SpanExtensions.trimLeft (dart-sass lib/src/util/span.dart).
-// A span with no leading whitespace returns itself unchanged. This mirrors
-// SimpleFileSpan.TrimLeft (util_span.go owns the FileSpan-backed logic);
-// this copy serves highlighter-synthesized spans with no file.
-func (s SourceSpanWithContext) TrimLeft() (FileSpan, error) {
-	text := s.text
-	start := 0
-	for start < len(text) && isWhitespaceByte(text[start]) {
-		start++
-	}
-	if start == 0 {
-		return s, nil
-	}
-	return s.Subspan(start, len(text))
-}
-
-// Trim returns this span with all whitespace trimmed from both sides.
-//
-// Matches Dart: SpanExtensions.trim (dart-sass lib/src/util/span.dart),
-// which folds trimLeft/trimRight the same way.
-func (s SourceSpanWithContext) Trim() (FileSpan, error) {
-	result, err := s.TrimLeft()
-	if err != nil {
-		return nil, err
-	}
-	return result.TrimRight()
-}
-
 // Before returns a span covering the text from the beginning of this span
 // to the beginning of sub.
 //
@@ -366,38 +313,6 @@ func (s SourceSpanWithContext) Contains(target FileSpan) (bool, error) {
 		return false, err
 	}
 	return s.end.Offset >= targetEnd.Offset, nil
-}
-
-// WithoutInitialAtRule returns a subspan excluding an initial at-rule and
-// any whitespace after it.
-//
-// Matches Dart: SpanExtensions.withoutInitialAtRule (dart-sass
-// lib/src/util/span.dart). The text must begin with "@"; otherwise a
-// *ScanError is returned, matching Dart's expectChar failure. This mirrors
-// SimpleFileSpan.WithoutInitialAtRule (util_span.go owns the
-// FileSpan-backed logic); this copy serves highlighter-synthesized spans
-// with no file.
-func (s SourceSpanWithContext) WithoutInitialAtRule() (FileSpan, error) {
-	text := s.text
-	if len(text) == 0 || text[0] != '@' {
-		return nil, &ScanError{Message: "Expected @.", Span: s}
-	}
-	pos, err := scanIdent(text, 1, s)
-	if err != nil {
-		return nil, err
-	}
-	if pos >= len(text) {
-		return s, nil
-	}
-	result, err := s.Subspan(pos, len(text))
-	if err != nil {
-		return nil, err
-	}
-	result2, err := trimLeftSpan(result)
-	if err != nil {
-		return nil, err
-	}
-	return result2, nil
 }
 
 // InitialQuoted returns the span of the quoted text at the start of this

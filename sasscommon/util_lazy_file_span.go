@@ -138,31 +138,6 @@ func (l *LazyFileSpan) Subspan(start, end int) (FileSpan, error) {
 	return s.Subspan(start, end)
 }
 
-// TrimRight returns a lazy span that trims trailing whitespace from the
-// underlying span when first resolved. Keeping the trim lazy matches Dart's
-// FileSpanExtension.trimRight, so callers can store trimmed spans without
-// forcing interpolation mapping or other expensive construction.
-//
-// Matches Dart: FileSpanExtension.trimRight
-func (l *LazyFileSpan) TrimRight() (FileSpan, error) {
-	return NewLazyFileSpan(func() (FileSpan, error) {
-		s, err := l.Get()
-		if err != nil {
-			return nil, err
-		}
-		return s.TrimRight()
-	}), nil
-}
-
-// WithoutInitialAtRule resolves the underlying span, then strips a leading at-rule from the underlying span.
-func (l *LazyFileSpan) WithoutInitialAtRule() (FileSpan, error) {
-	s, err := l.Get()
-	if err != nil {
-		return nil, err
-	}
-	return s.WithoutInitialAtRule()
-}
-
 // InitialQuoted resolves the underlying span, then takes the leading quoted string of the underlying span.
 func (l *LazyFileSpan) InitialQuoted() (FileSpan, error) {
 	s, err := l.Get()

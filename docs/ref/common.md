@@ -87,6 +87,11 @@ type FileSpan interface {
   span.
 - `LazyFileSpan` defers span resolution through a builder plus cache.
   `MultiSpan` pairs a primary span+label with secondary spans.
+- Span trimming (`trim`, `trimLeft`, `trimRight`) and `withoutInitialAtRule`
+  must skip comments, strings, `url(...)`, and interpolations, so they need
+  the parser. They live in `value/util_span_trim.go` as helpers over
+  `sasscommon.FileSpan` rather than in `sasscommon`, which cannot import
+  `value`. The sasscommon `FileSpan` deliberately has no trim methods.
 - The **highlighter** (`source_span_highlighter.go`) slices and counts in
   **characters, not bytes**: caret widths and line lengths count display
   characters, and source-map columns count characters/UTF-16 units — matching

@@ -75,12 +75,12 @@ func (r *IncludeRule) NameSpan() (sasscommon.FileSpan, error) {
 		if err != nil {
 			return nil, err
 		}
-		startSpan, err = trimLeftFileSpan(startSpan)
+		startSpan, err = trimLeftSpan(startSpan)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		startSpan, err = r.span.WithoutInitialAtRule()
+		startSpan, err = withoutInitialAtRule(r.span)
 		if err != nil {
 			return nil, err
 		}
@@ -119,12 +119,12 @@ func (r *IncludeRule) NamespaceSpan() (*sasscommon.FileSpan, error) {
 		if err != nil {
 			return nil, err
 		}
-		startSpan, err = trimLeftFileSpan(startSpan)
+		startSpan, err = trimLeftSpan(startSpan)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		startSpan, err = r.span.WithoutInitialAtRule()
+		startSpan, err = withoutInitialAtRule(r.span)
 		if err != nil {
 			return nil, err
 		}
@@ -185,25 +185,6 @@ func (r *IncludeRule) IsSassNode()                        {}
 func (r *IncludeRule) IsAstNode()                         {}
 func (r *IncludeRule) IsCallableInvocation()              {}
 func (r *IncludeRule) isSassReference()                   {}
-
-func trimLeftFileSpan(s sasscommon.FileSpan) (sasscommon.FileSpan, error) {
-	text, err := s.SpanText()
-	if err != nil {
-		return nil, err
-	}
-	start := 0
-	for start < len(text) && (text[start] == ' ' || text[start] == '\t' || text[start] == '\n' || text[start] == '\r' || text[start] == '\f') {
-		start++
-	}
-	if start == 0 {
-		return s, nil
-	}
-	length, err := s.Length()
-	if err != nil {
-		return nil, err
-	}
-	return s.Subspan(start, length)
-}
 
 func withoutNamespace(s sasscommon.FileSpan) (sasscommon.FileSpan, error) {
 	afterIdent, err := withoutInitialIdentifier(s)

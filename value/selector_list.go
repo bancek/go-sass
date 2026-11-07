@@ -715,7 +715,7 @@ func (s *SelectorList) nestWithinCompound(
 	for _, complex := range parent.Components {
 		lastComponent := complex.Components[len(complex.Components)-1]
 		if len(lastComponent.Combinators) > 0 {
-			trimmed, err := lastComponent.Span.TrimRight()
+			trimmed, err := trimRightSpan(lastComponent.Span)
 			if err != nil {
 				return nil, err
 			}

@@ -249,7 +249,7 @@ func (p *SelectorParser) _selectorList() (*SelectorList, error) {
 	if err != nil {
 		return nil, err
 	}
-	span, err = span.TrimRight()
+	span, err = trimRightSpan(span)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func (p *SelectorParser) _complexSelector(lineBreak bool) (*ComplexSelector, err
 				if err != nil {
 					return nil, err
 				}
-				componentSpan, err = componentSpan.TrimRight()
+				componentSpan, err = trimRightSpan(componentSpan)
 				if err != nil {
 					return nil, err
 				}
@@ -410,7 +410,7 @@ done:
 		if err != nil {
 			return nil, err
 		}
-		componentSpan, err = componentSpan.TrimRight()
+		componentSpan, err = trimRightSpan(componentSpan)
 		if err != nil {
 			return nil, err
 		}
@@ -425,7 +425,7 @@ done:
 	if err != nil {
 		return nil, err
 	}
-	span, err = span.TrimRight()
+	span, err = trimRightSpan(span)
 	if err != nil {
 		return nil, err
 	}

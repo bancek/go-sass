@@ -45,7 +45,7 @@ func (r *FunctionRule) HasDeclarations() bool              { return r.base.HasDe
 //
 // Matches Dart: FunctionRule.nameSpan
 func (r *FunctionRule) NameSpan() (sasscommon.FileSpan, error) {
-	ss, err := r.base.span.WithoutInitialAtRule()
+	ss, err := withoutInitialAtRule(r.base.span)
 	if err != nil {
 		return nil, err
 	}

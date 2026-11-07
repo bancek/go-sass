@@ -209,51 +209,6 @@ func TestLazyFileSpanSubspan(t *testing.T) {
 	}
 }
 
-func TestLazyFileSpanTrimRight(t *testing.T) {
-	fs := NewFileSource([]byte("abc  "), nil)
-	l := NewLazyFileSpan(func() (FileSpan, error) {
-		return NewSimpleFileSpan(fs, 0, 5), nil
-	})
-	trimmed, err := l.TrimRight()
-	if err != nil {
-		t.Fatal(err)
-	}
-	text, err := trimmed.SpanText()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text != "abc" {
-		t.Errorf("TrimRight = %q", text)
-	}
-}
-
-func TestLazyFileSpanTrimRightIsLazy(t *testing.T) {
-	fs := NewFileSource([]byte("abc  "), nil)
-	calls := 0
-	l := NewLazyFileSpan(func() (FileSpan, error) {
-		calls++
-		return NewSimpleFileSpan(fs, 0, 5), nil
-	})
-
-	trimmed, err := l.TrimRight()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if calls != 0 {
-		t.Fatalf("TrimRight resolved the underlying span eagerly (%d calls)", calls)
-	}
-	text, err := trimmed.SpanText()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text != "abc" {
-		t.Errorf("TrimRight = %q, want %q", text, "abc")
-	}
-	if calls != 1 {
-		t.Errorf("underlying span resolved %d times, want 1", calls)
-	}
-}
-
 func TestLazyFileSpanBefore(t *testing.T) {
 	fs := NewFileSource([]byte("abcdef"), nil)
 	l := NewLazyFileSpan(func() (FileSpan, error) {

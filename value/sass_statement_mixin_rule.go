@@ -81,7 +81,7 @@ func (r *MixinRule) NameSpan() (sasscommon.FileSpan, error) {
 		}
 		return ns, nil
 	}
-	ss, err := r.base.span.WithoutInitialAtRule()
+	ss, err := withoutInitialAtRule(r.base.span)
 	if err != nil {
 		return nil, err
 	}

@@ -110,7 +110,7 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 		if err != nil {
 			return nil, err
 		}
-		span, err = span.TrimRight()
+		span, err = trimRightSpan(span)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 		if err != nil {
 			return nil, err
 		}
-		span, err = span.TrimRight()
+		span, err = trimRightSpan(span)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +198,7 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 			if err != nil {
 				return nil, err
 			}
-			span, err = span.TrimRight()
+			span, err = trimRightSpan(span)
 			if err != nil {
 				return nil, err
 			}
@@ -235,7 +235,7 @@ func (p *CssMediaQueryParser) _mediaQuery() (*CssMediaQuery, error) {
 	if err != nil {
 		return nil, err
 	}
-	span, err = span.TrimRight()
+	span, err = trimRightSpan(span)
 	if err != nil {
 		return nil, err
 	}

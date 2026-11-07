@@ -169,63 +169,6 @@ func TestExpandSameStart(t *testing.T) {
 	}
 }
 
-// --- TrimRight ---
-
-func TestTrimRightNoWhitespace(t *testing.T) {
-	fs := testFileSource("abc")
-	s := NewSimpleFileSpan(fs, 0, 3)
-	trimmed, err := s.TrimRight()
-	if err != nil {
-		t.Fatal(err)
-	}
-	text, err := trimmed.SpanText()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text != "abc" {
-		t.Errorf("TrimRight() = %q", text)
-	}
-}
-
-func TestTrimRightSpaces(t *testing.T) {
-	fs := testFileSource("abc  ")
-	s := NewSimpleFileSpan(fs, 0, 5)
-	trimmed, err := s.TrimRight()
-	if err != nil {
-		t.Fatal(err)
-	}
-	text, err := trimmed.SpanText()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text != "abc" {
-		t.Errorf("TrimRight() = %q, want %q", text, "abc")
-	}
-	endLoc, err := trimmed.EndLocation()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if endLoc.Offset != 3 {
-		t.Errorf("TrimRight end offset = %d, want 3", endLoc.Offset)
-	}
-}
-
-func TestTrimRightNewlinesAndSpaces(t *testing.T) {
-	fs := testFileSource("abc\n\r ")
-	s := NewSimpleFileSpan(fs, 0, 6)
-	trimmed, err := s.TrimRight()
-	if err != nil {
-		t.Fatal(err)
-	}
-	text, err := trimmed.SpanText()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text != "abc" {
-		t.Errorf("TrimRight() = %q, want %q", text, "abc")
-	}
-}
-
 // --- Before ---
 
 func TestBefore(t *testing.T) {

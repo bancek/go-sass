@@ -55,7 +55,7 @@ func (u *UseRule) URL() *sassurl.URL { return u.url }
 
 // URLSpan returns the span covering the quoted module URL.
 func (u *UseRule) URLSpan() (sasscommon.FileSpan, error) {
-	span, err := u.span.WithoutInitialAtRule()
+	span, err := withoutInitialAtRule(u.span)
 	if err != nil {
 		return nil, err
 	}

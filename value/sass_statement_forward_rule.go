@@ -110,7 +110,7 @@ func (r *ForwardRule) URL() *sassurl.URL { return r.url }
 //
 // Matches Dart: ForwardRule.urlSpan
 func (r *ForwardRule) URLSpan() (sasscommon.FileSpan, error) {
-	span, err := r.span.WithoutInitialAtRule()
+	span, err := withoutInitialAtRule(r.span)
 	if err != nil {
 		return nil, err
 	}
