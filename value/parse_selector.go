@@ -597,21 +597,19 @@ func (p *SelectorParser) _attributeName() (QualifiedName, error) {
 		if err := p.expectChar('|'); err != nil {
 			return QualifiedName{}, err
 		}
-		wildcard := "*"
 		name, err := p.identifier(false, false)
 		if err != nil {
 			return QualifiedName{}, err
 		}
-		return NewQualifiedNameWithNamespace(name, &wildcard), nil
+		return NewQualifiedNameWithNamespace(name, AnySelectorNS), nil
 	}
 
 	if p.scanner.ScanChar('|') {
-		empty := ""
 		name, err := p.identifier(false, false)
 		if err != nil {
 			return QualifiedName{}, err
 		}
-		return NewQualifiedNameWithNamespace(name, &empty), nil
+		return NewQualifiedNameWithNamespace(name, NoSelectorNS), nil
 	}
 
 	nameOrNamespace, err := p.identifier(false, false)
@@ -629,7 +627,7 @@ func (p *SelectorParser) _attributeName() (QualifiedName, error) {
 	if err != nil {
 		return QualifiedName{}, err
 	}
-	return NewQualifiedNameWithNamespace(name, &nameOrNamespace), nil
+	return NewQualifiedNameWithNamespace(name, NamedNamespace(nameOrNamespace)), nil
 }
 
 // _attributeOperator consumes an attribute selector's operator (`=`, `~=`,
@@ -851,23 +849,29 @@ func (p *SelectorParser) _pseudoSelector() (*PseudoSelector, error) {
 // with no `n` is returned as-is.
 func (p *SelectorParser) _aNPlusB() (string, error) {
 	var sb strings.Builder
-	switch ch := p.scanner.PeekChar(0); {
-	case ch == 'e' || ch == 'E':
+	ch, escaped, peekErr := p.peekCharOrEscape(0)
+	if peekErr != nil {
+		return "", peekErr
+	}
+	switch ch {
+	case 'e', 'E':
 		if err := p.expectIdentifier("even", "", false); err != nil {
 			return "", err
 		}
 		return "even", nil
-	case ch == 'o' || ch == 'O':
+	case 'o', 'O':
 		if err := p.expectIdentifier("odd", "", false); err != nil {
 			return "", err
 		}
 		return "odd", nil
-	case ch == '+' || ch == '-':
-		b, err := p.readChar()
-		if err != nil {
-			return "", err
+	case '+', '-':
+		if !escaped {
+			b, err := p.readChar()
+			if err != nil {
+				return "", err
+			}
+			sb.WriteByte(byte(b))
 		}
-		sb.WriteByte(byte(b))
 	}
 
 	if util.IsDigit(p.scanner.PeekChar(0)) {
@@ -937,15 +941,14 @@ func (p *SelectorParser) _typeOrUniversalSelector() (SimpleSelector, error) {
 			if err != nil {
 				return nil, err
 			}
-			return NewUniversalSelector(span, nil), nil
+			return NewUniversalSelector(span, DefaultSelectorNS), nil
 		}
-		wildcard := "*"
 		if p.scanner.ScanChar('*') {
 			span, err := p.spanFrom(start)
 			if err != nil {
 				return nil, err
 			}
-			return NewUniversalSelector(span, &wildcard), nil
+			return NewUniversalSelector(span, AnySelectorNS), nil
 		}
 		name, err := p.identifier(false, false)
 		if err != nil {
@@ -956,16 +959,15 @@ func (p *SelectorParser) _typeOrUniversalSelector() (SimpleSelector, error) {
 			return nil, err
 		}
 		return NewTypeSelector(
-			NewQualifiedNameWithNamespace(name, &wildcard),
+			NewQualifiedNameWithNamespace(name, AnySelectorNS),
 			span), nil
 	} else if p.scanner.ScanChar('|') {
-		empty := ""
 		if p.scanner.ScanChar('*') {
 			span, err := p.spanFrom(start)
 			if err != nil {
 				return nil, err
 			}
-			return NewUniversalSelector(span, &empty), nil
+			return NewUniversalSelector(span, NoSelectorNS), nil
 		}
 		name, err := p.identifier(false, false)
 		if err != nil {
@@ -976,7 +978,7 @@ func (p *SelectorParser) _typeOrUniversalSelector() (SimpleSelector, error) {
 			return nil, err
 		}
 		return NewTypeSelector(
-			NewQualifiedNameWithNamespace(name, &empty),
+			NewQualifiedNameWithNamespace(name, NoSelectorNS),
 			span), nil
 	}
 
@@ -995,7 +997,7 @@ func (p *SelectorParser) _typeOrUniversalSelector() (SimpleSelector, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewUniversalSelector(span, &nameOrNamespace), nil
+		return NewUniversalSelector(span, NamedNamespace(nameOrNamespace)), nil
 	} else {
 		name, err := p.identifier(false, false)
 		if err != nil {
@@ -1006,7 +1008,7 @@ func (p *SelectorParser) _typeOrUniversalSelector() (SimpleSelector, error) {
 			return nil, err
 		}
 		return NewTypeSelector(
-			NewQualifiedNameWithNamespace(name, &nameOrNamespace),
+			NewQualifiedNameWithNamespace(name, NamedNamespace(nameOrNamespace)),
 			span), nil
 	}
 }

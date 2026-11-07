@@ -122,6 +122,22 @@ func (in *Interpolation) AsPlain() *string {
 	return nil
 }
 
+// AsPlainIdentifier returns the plain text contents resolved as a CSS
+// identifier, or nil when the interpolation contains expressions.
+//
+// Matches Dart: Interpolation.asPlainIdentifier
+func (in *Interpolation) AsPlainIdentifier() (*string, error) {
+	plain := in.AsPlain()
+	if plain == nil {
+		return nil, nil
+	}
+	resolved, err := ResolveCssEscapes(*plain)
+	if err != nil {
+		return nil, err
+	}
+	return &resolved, nil
+}
+
 // InitialPlain returns the plain text before the first interpolation, or the
 // empty string.
 //

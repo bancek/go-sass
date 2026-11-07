@@ -9,8 +9,8 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `00a0d7968f4a6d8ed044da35e3b04877d8b3e2b4` (2026-10-15, `PORTED_FROM`) |
-| dart-sass version   | 1.105.2                                                                |
+| dart-sass commit    | `91fd60be15d757697e924a45b2da4410a1beb3eb` (2026-10-16, `PORTED_FROM`) |
+| dart-sass version   | 1.106.0                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
 
@@ -45,8 +45,8 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `00a0d796` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
-| `sass-spec`          | `49bf57ed`                   | the spec suite expectations                                                               |
+| `dart-sass`          | `91fd60be` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `sass-spec`          | `58295762`                   | the spec suite expectations                                                               |
 | `sass`               | `88142a47`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
 | `embedded-host-node` | `0ce7457` (host `1.105.2`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |

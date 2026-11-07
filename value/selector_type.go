@@ -85,7 +85,7 @@ func (s *TypeSelector) String() (string, error) {
 // HashCode folds the element name and namespace together. Spans never
 // contribute to selector hashes.
 func (s *TypeSelector) HashCode() int {
-	return hashCombine(stringHashCode(s.Name.Name), hashPtr(s.Name.Namespace))
+	return hashCombine(stringHashCode(s.Name.Name), selectorNamespaceHashCode(s.Name.Namespace))
 }
 
 // IsSuperselector reports whether this type is a superselector of other.
@@ -104,5 +104,5 @@ func (s *TypeSelector) IsSuperselector(other SimpleSelector) (bool, error) {
 		return false, nil
 	}
 	return s.Name.Name == o.Name.Name &&
-		((s.Name.Namespace != nil && *s.Name.Namespace == "*") || ptrEqStr(s.Name.Namespace, o.Name.Namespace)), nil
+		(isAnySelectorNamespace(s.Name.Namespace) || selectorNamespaceEqual(s.Name.Namespace, o.Name.Namespace)), nil
 }

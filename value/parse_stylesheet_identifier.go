@@ -17,7 +17,7 @@ import (
 // Interpolated identifiers: plain names plus #{...} splices and escapes.
 
 // interpolatedIdentifier consumes an identifier that may carry interpolation.
-func (p *StylesheetParser) interpolatedIdentifier() (*Interpolation, error) {
+func (p *StylesheetParser) interpolatedIdentifier(expression bool) (*Interpolation, error) {
 	start := p.scanner.State()
 	buffer := &InterpolationBuffer{}
 
@@ -27,7 +27,7 @@ func (p *StylesheetParser) interpolatedIdentifier() (*Interpolation, error) {
 		buffer.WriteCharCode('-')
 		if p.scanner.ScanChar('-') {
 			buffer.WriteCharCode('-')
-			if err := p.interpolatedIdentifierBodyHelper(buffer); err != nil {
+			if err := p.interpolatedIdentifierBodyHelper(buffer, expression); err != nil {
 				return nil, err
 			}
 			span, err := p.spanFrom(start)
@@ -53,11 +53,22 @@ func (p *StylesheetParser) interpolatedIdentifier() (*Interpolation, error) {
 		buffer.WriteCharCode(rc)
 	case ch == '\\':
 		// Leading escapes may start the name, unlike later ones.
-		esc, err := p.escape(true)
-		if err != nil {
-			return nil, err
+		if expression {
+			value, err := p.escape()
+			if err != nil {
+				return nil, err
+			}
+			buffer.Write(util.CharacterToEscape(value, true))
+		} else {
+			text, err := p.rawText(func() error {
+				_, err := p.escape()
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			buffer.Write(text)
 		}
-		buffer.Write(esc)
 	case ch == '#' && p.scanner.PeekChar(1) == '{':
 		// Interpolation may open the name, which covers cases like
 		// "#{...}--1" where the remainder alone would be invalid.
@@ -70,7 +81,7 @@ func (p *StylesheetParser) interpolatedIdentifier() (*Interpolation, error) {
 		return nil, p.scanner.Error("Expected identifier.", -1, 0)
 	}
 
-	if err := p.interpolatedIdentifierBodyHelper(buffer); err != nil {
+	if err := p.interpolatedIdentifierBodyHelper(buffer, expression); err != nil {
 		return nil, err
 	}
 	span, err := p.spanFrom(start)
@@ -88,10 +99,10 @@ func (p *StylesheetParser) interpolatedIdentifier() (*Interpolation, error) {
 // CSS identifier once the name start is gone. It fails with "Expected
 // identifier body." when nothing follows, so callers must have consumed the
 // leading character first.
-func (p *StylesheetParser) interpolatedIdentifierBody() (*Interpolation, error) {
+func (p *StylesheetParser) interpolatedIdentifierBody(expression bool) (*Interpolation, error) {
 	start := p.scanner.State()
 	buffer := &InterpolationBuffer{}
-	if err := p.interpolatedIdentifierBodyHelper(buffer); err != nil {
+	if err := p.interpolatedIdentifierBodyHelper(buffer, expression); err != nil {
 		return nil, err
 	}
 	if buffer.IsEmpty() {
@@ -111,7 +122,7 @@ func (p *StylesheetParser) interpolatedIdentifierBody() (*Interpolation, error) 
 // interpolatedIdentifierBodyHelper parses an identifier body into the given
 // buffer: name characters, escapes, and #{...} splices until anything else
 // appears.
-func (p *StylesheetParser) interpolatedIdentifierBodyHelper(buffer *InterpolationBuffer) error {
+func (p *StylesheetParser) interpolatedIdentifierBodyHelper(buffer *InterpolationBuffer, expression bool) error {
 	for {
 		switch ch := p.scanner.PeekChar(0); {
 		case ch < 0:
@@ -123,11 +134,22 @@ func (p *StylesheetParser) interpolatedIdentifierBodyHelper(buffer *Interpolatio
 			}
 			buffer.WriteCharCode(rc)
 		case ch == '\\':
-			esc, err := p.escape(false)
-			if err != nil {
-				return err
+			if expression {
+				value, err := p.escape()
+				if err != nil {
+					return err
+				}
+				buffer.Write(util.CharacterToEscape(value, false))
+			} else {
+				text, err := p.rawText(func() error {
+					_, err := p.escape()
+					return err
+				})
+				if err != nil {
+					return err
+				}
+				buffer.Write(text)
 			}
-			buffer.Write(esc)
 		case ch == '#' && p.scanner.PeekChar(1) == '{':
 			expr, span, err := p.singleInterpolation()
 			if err != nil {

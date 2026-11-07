@@ -17,15 +17,17 @@ import (
 // UniversalSelector matches any element in the given namespace.
 type UniversalSelector struct {
 	base SelectorBase
-	// Namespace selects which namespace to match. Nil matches the default
-	// namespace, "" matches elements in no namespace, and "*" matches
-	// elements in any namespace.
-	Namespace *string
+	// Namespace selects which namespace to match. The default namespace is
+	// used when nil.
+	Namespace SelectorNamespace
 }
 
 // NewUniversalSelector creates a universal selector (`*`) for the given
 // namespace.
-func NewUniversalSelector(span sasscommon.FileSpan, namespace *string) *UniversalSelector {
+func NewUniversalSelector(span sasscommon.FileSpan, namespace SelectorNamespace) *UniversalSelector {
+	if namespace == nil {
+		namespace = DefaultSelectorNS
+	}
 	return &UniversalSelector{
 		base:      NewSelectorBase(span),
 		Namespace: namespace,
@@ -99,7 +101,7 @@ func (s *UniversalSelector) String() (string, error) {
 
 // HashCode hashes the namespace. Spans never contribute to selector hashes.
 func (s *UniversalSelector) HashCode() int {
-	return hashPtr(s.Namespace)
+	return selectorNamespaceHashCode(s.Namespace)
 }
 
 // IsSuperselector reports whether this universal is a superselector of other.
@@ -107,16 +109,16 @@ func (s *UniversalSelector) HashCode() int {
 // and universal selectors in the same namespace, and a default-namespace
 // universal matches anything the shared base-class check accepts.
 func (s *UniversalSelector) IsSuperselector(other SimpleSelector) (bool, error) {
-	if s.Namespace != nil && *s.Namespace == "*" {
+	if _, ok := s.Namespace.(AnySelectorNamespace); ok {
 		return true, nil
 	}
 	if o, ok := other.(*TypeSelector); ok {
-		return ptrEq(s.Namespace, o.Name.Namespace), nil
+		return selectorNamespaceEqual(s.Namespace, o.Name.Namespace), nil
 	}
 	if o, ok := other.(*UniversalSelector); ok {
-		return ptrEq(s.Namespace, o.Namespace), nil
+		return selectorNamespaceEqual(s.Namespace, o.Namespace), nil
 	}
-	if s.Namespace == nil {
+	if _, ok := s.Namespace.(DefaultSelectorNamespace); ok {
 		return true, nil
 	}
 	return simpleIsSuperselector(s, other)

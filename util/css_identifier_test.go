@@ -40,8 +40,8 @@ func TestToCssIdentifierDashAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != `\2d` {
-		t.Errorf("ToCssIdentifier(-) = %q, want %q", got, `\2d`)
+	if got != `\2d ` {
+		t.Errorf("ToCssIdentifier(-) = %q, want %q", got, `\2d `)
 	}
 }
 
@@ -70,5 +70,59 @@ func TestToCssIdentifierUnderscore(t *testing.T) {
 	}
 	if got != "_foo" {
 		t.Errorf("ToCssIdentifier(_foo) = %q, want %q", got, "_foo")
+	}
+}
+
+func TestToCssIdentifierBody(t *testing.T) {
+	got, err := ToCssIdentifierBody("1foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "1foo" {
+		t.Errorf("ToCssIdentifierBody(1foo) = %q, want %q", got, "1foo")
+	}
+}
+
+func TestToCssIdentifierEscapes(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"foo.bar", `foo\.bar`},
+		{"\n", `\a `},
+		{"é", "é"},
+		{"\uE000", `\e000 `},
+	}
+	for _, tt := range tests {
+		got, err := ToCssIdentifier(tt.input)
+		if err != nil {
+			t.Errorf("ToCssIdentifier(%q): %v", tt.input, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("ToCssIdentifier(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestIsSimpleIdentifier(t *testing.T) {
+	if !IsSimpleIdentifier("foo-bar") {
+		t.Error("foo-bar should be simple")
+	}
+	if IsSimpleIdentifier("foo.bar") {
+		t.Error("foo.bar should not be simple")
+	}
+	if IsSimpleIdentifier("\uE000") {
+		t.Error("private-use BMP should not be simple")
+	}
+}
+
+func TestToCssIdentifierSupplementaryPrivateUse(t *testing.T) {
+	got, err := ToCssIdentifier("\U000F0000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `\f0000 ` {
+		t.Errorf("ToCssIdentifier(U+F0000) = %q, want %q", got, `\f0000 `)
 	}
 }

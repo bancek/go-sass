@@ -10,6 +10,7 @@ package util
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bancek/go-sass/sasscommon"
 )
@@ -212,4 +213,32 @@ func IsName(ch int) bool {
 // Matches Dart: CharacterExtension.isAlphabetic
 func IsAlphabetic(ch int) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+// CharacterToEscape returns the CSS escape sequence for character, or the
+// literal character if it doesn't need to be escaped.
+//
+// If identifierStart is true, escapes characters that are valid in identifier
+// bodies but not at the beginning of identifiers.
+//
+// Matches Dart: characterToEscape (utils.dart)
+func CharacterToEscape(character int, identifierStart bool) string {
+	if identifierStart {
+		if IsNameStart(character) {
+			return string(rune(character))
+		}
+	} else if IsName(character) {
+		return string(rune(character))
+	}
+	if character <= 0x1F || character == 0x7F || (identifierStart && IsDigit(character)) {
+		var sb strings.Builder
+		sb.WriteByte('\\')
+		if character > 0xF {
+			sb.WriteByte(byte(HexCharFor(character >> 4)))
+		}
+		sb.WriteByte(byte(HexCharFor(character & 0xF)))
+		sb.WriteByte(' ')
+		return sb.String()
+	}
+	return "\\" + string(rune(character))
 }

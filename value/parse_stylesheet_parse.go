@@ -683,7 +683,7 @@ func (p *StylesheetParser) declarationOrBuffer() (any, error) {
 	var variableOrInterpolation any
 	if startsWithPunctuation {
 		var err error
-		variableOrInterpolation, err = p.interpolatedIdentifier()
+		variableOrInterpolation, err = p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -744,7 +744,15 @@ func (p *StylesheetParser) declarationOrBuffer() (any, error) {
 	// Custom properties (`--*`) — and the plain-CSS `@function` `result`
 	// property — parse as declarations no matter what follows, with raw
 	// interpolated values rather than SassScript.
-	if isCustomProperty || (p.inPlainCssFunction && name.AsPlain() != nil && strings.EqualFold(*name.AsPlain(), "result")) {
+	isPlainResult := false
+	if p.inPlainCssFunction {
+		resultName, nameErr := name.AsPlainIdentifier()
+		if nameErr != nil {
+			return nil, nameErr
+		}
+		isPlainResult = resultName != nil && strings.EqualFold(*resultName, "result")
+	}
+	if isCustomProperty || isPlainResult {
 		var valueExpr *StringExpression
 		if p.atEndOfStatement() {
 			valueExpr = NewStringExpression(NewInterpolationPlain("", p.scanner.EmptySpan()), false)
@@ -875,58 +883,28 @@ func (p *StylesheetParser) declarationOrBuffer() (any, error) {
 // caller should attempt property-declaration or selector parsing with it;
 // a VariableDeclaration means one was consumed.
 func (p *StylesheetParser) variableDeclarationOrInterpolation() (any, error) {
-	if !p.lookingAtIdentifier(nil) {
-		interp, err := p.interpolatedIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		return interp, nil
-	}
-
 	start := p.scanner.State()
-	ident, err := p.identifier(false, false)
+	identifier, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
 	if p.scanner.PeekChar(0) == '.' && p.scanner.PeekChar(1) == '$' {
-		// `ident.$` starts a namespaced declaration (`.$` appears in
-		// nothing else); anything else accumulates into an interpolation.
-		if _, err := p.readChar(); err != nil {
-			return nil, err
-		}
-		decl, err := p.variableDeclarationWithoutNamespace(ident, &start)
+		plain, err := identifier.AsPlainIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		return decl, nil
-	}
-	buf := &InterpolationBuffer{}
-	buf.Write(ident)
-	if p.lookingAtInterpolatedIdentifierBody() {
-		// Consume the rest of an interpolated identifier here so callers
-		// do not have to.
-		interp, identErr := p.interpolatedIdentifier()
-		if identErr != nil {
-			return nil, identErr
+		if plain != nil {
+			if _, err := p.readChar(); err != nil {
+				return nil, err
+			}
+			decl, err := p.variableDeclarationWithoutNamespace(*plain, &start)
+			if err != nil {
+				return nil, err
+			}
+			return decl, nil
 		}
-		buf.AddInterpolation(interp)
 	}
-	interpSpan, spErr := p.spanFrom(start)
-	if spErr != nil {
-		return nil, spErr
-	}
-	result, err := buf.Interpolation(interpSpan)
-	if err != nil {
-		errSpan, spErr := p.spanFrom(start)
-		if spErr != nil {
-			return nil, spErr
-		}
-		if cfgErr := p.error(err.Error(), errSpan, nil); cfgErr != nil {
-			return nil, cfgErr
-		}
-		return nil, nil
-	}
-	return result, nil
+	return identifier, nil
 }
 
 // styleRule consumes a style rule, optionally seeded with a buffer holding
@@ -1059,7 +1037,7 @@ func (p *StylesheetParser) propertyOrVariableDeclaration() (Statement, error) {
 			return nil, err
 		}
 		nameBuffer.Write(text)
-		interp, interpErr := p.interpolatedIdentifier()
+		interp, interpErr := p.interpolatedIdentifier(false)
 		if interpErr != nil {
 			return nil, interpErr
 		}
@@ -1090,7 +1068,7 @@ func (p *StylesheetParser) propertyOrVariableDeclaration() (Statement, error) {
 		}
 		name = variableOrInterpolation.(*Interpolation)
 	} else {
-		interp, interpErr := p.interpolatedIdentifier()
+		interp, interpErr := p.interpolatedIdentifier(false)
 		if interpErr != nil {
 			return nil, interpErr
 		}

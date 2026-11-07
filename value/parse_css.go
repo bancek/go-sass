@@ -256,7 +256,7 @@ func (p *CssParser) cssAtRule(child func() (Statement, error), root bool) (State
 	if err := p.expectChar('@'); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +330,11 @@ func (p *CssParser) cssImportRule(start sasscommon.LineScannerState) (Statement,
 	urlStart := p.scanner.State()
 	var urlText *Interpolation
 	var urlErr error
-	switch ch := p.scanner.PeekChar(0); {
+	ch, _, peekErr := p.peekCharOrEscape(0)
+	if peekErr != nil {
+		return nil, peekErr
+	}
+	switch {
 	case ch == 'u' || ch == 'U':
 		dynExpr, dynErr := p.dynamicUrl()
 		if dynErr != nil {
@@ -498,7 +502,7 @@ func (p *CssParser) parentheses() (Expression, error) {
 // disallowed set fail. Matches Dart's CssParser.identifierLike.
 func (p *CssParser) identifierLike() (Expression, error) {
 	start := p.scanner.State()
-	identifier, err := p.interpolatedIdentifier()
+	identifier, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}

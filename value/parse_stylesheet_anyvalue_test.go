@@ -661,9 +661,23 @@ func TestInterpolatedDeclarationValueEscape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// \61 = 'a' (hex escape), trailing space consumed by escape
+	// Statement-level values preserve the escape spelling verbatim.
+	if s != `\61 bc` {
+		t.Errorf("String() = %q, want %q", s, `\61 bc`)
+	}
+
+	opts.expression = true
+	p = newTestStylesheetParser(`\61 bc`)
+	interp, err = p.interpolatedDeclarationValue(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err = interp.String()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if s != "abc" {
-		t.Errorf("String() = %q, want %q", s, "abc")
+		t.Errorf("expression String() = %q, want %q", s, "abc")
 	}
 }
 

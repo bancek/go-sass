@@ -39,7 +39,7 @@ func (p *StylesheetParser) atRule(child func() (Statement, error), root bool) (S
 	if err := p.expectChar('@'); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,10 @@ func (p *StylesheetParser) atRule(child func() (Statement, error), root bool) (S
 	wasUseAllowed := p.isUseAllowed
 	p.isUseAllowed = false
 
-	plain := name.AsPlain()
+	plain, plainErr := name.AsPlainIdentifier()
+	if plainErr != nil {
+		return nil, plainErr
+	}
 	if plain == nil {
 		return p.unknownAtRule(start, name)
 	}
@@ -987,7 +990,10 @@ func (p *StylesheetParser) importRule(start sasscommon.LineScannerState) (*Impor
 // becomes a dynamic import whose URL is validated by parseImportUrl.
 func (p *StylesheetParser) importArgument() (Import, error) {
 	start := p.scanner.State()
-	ch := p.scanner.PeekChar(0)
+	ch, _, peekErr := p.peekCharOrEscape(0)
+	if peekErr != nil {
+		return nil, peekErr
+	}
 	if ch == 'u' || ch == 'U' {
 		urlExpr, dynErr := p.dynamicUrl()
 		if dynErr != nil {
@@ -1102,13 +1108,16 @@ func (p *StylesheetParser) tryImportModifiers() (*Interpolation, error) {
 				buffer.WriteCharCode(' ')
 			}
 
-			identifier, err := p.interpolatedIdentifier()
+			identifier, err := p.interpolatedIdentifier(false)
 			if err != nil {
 				return nil, err
 			}
 			buffer.AddInterpolation(identifier)
 
-			name := identifier.AsPlain()
+			name, nameErr := identifier.AsPlainIdentifier()
+			if nameErr != nil {
+				return nil, nameErr
+			}
 			var lower string
 			if name != nil {
 				lower = strings.ToLower(*name)
@@ -1448,7 +1457,11 @@ func (p *StylesheetParser) mozDocumentRule(start sasscommon.LineScannerState, na
 			}
 			switch identifier {
 			case "url", "url-prefix", "domain":
-				contents, err := p.tryUrlContents(identifierStart, identifier, false)
+				nameSpan, spanErr := p.spanFrom(identifierStart)
+				if spanErr != nil {
+					return nil, spanErr
+				}
+				contents, err := p.tryUrlContents(identifierStart, NewInterpolationPlain(identifier, nameSpan), false)
 				if err != nil {
 					return nil, err
 				}
@@ -1860,7 +1873,11 @@ func (p *StylesheetParser) unknownAtRule(start sasscommon.LineScannerState, name
 	}
 
 	wasInPlainCssFunction := p.inPlainCssFunction
-	if name.AsPlain() != nil && strings.EqualFold(*name.AsPlain(), "function") {
+	functionName, functionErr := name.AsPlainIdentifier()
+	if functionErr != nil {
+		return nil, functionErr
+	}
+	if functionName != nil && strings.EqualFold(*functionName, "function") {
 		p.inPlainCssFunction = true
 	}
 

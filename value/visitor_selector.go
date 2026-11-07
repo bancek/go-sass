@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/bancek/go-sass/sasscommon"
+	"github.com/bancek/go-sass/util"
 )
 
 // ---- SelectorVisitor implementations ----
@@ -137,7 +138,8 @@ func (sv *SerializeVisitor) VisitAttributeSelector(attr *AttributeSelector) (str
 	if attr.Op != nil {
 		_, _ = sv.sb.WriteString(attr.Op.String())
 		if attr.Value != nil {
-			isIdent := IsIdentifier(*attr.Value) &&
+			escaped, escapeErr := util.ToCssIdentifier(*attr.Value)
+			isIdent := escapeErr == nil && escaped == *attr.Value &&
 				!strings.HasPrefix(*attr.Value, "--")
 			if isIdent {
 				_, _ = sv.sb.WriteString(*attr.Value)
@@ -164,7 +166,11 @@ func (sv *SerializeVisitor) VisitAttributeSelector(attr *AttributeSelector) (str
 // Matches Dart: _SerializeVisitor.visitClassSelector
 func (sv *SerializeVisitor) VisitClassSelector(klass *ClassSelector) (struct{}, error) {
 	_ = sv.sb.WriteByte('.')
-	_, _ = sv.sb.WriteString(klass.Name)
+	name, err := util.ToCssIdentifier(klass.Name)
+	if err != nil {
+		return struct{}{}, err
+	}
+	_, _ = sv.sb.WriteString(name)
 	return struct{}{}, nil
 }
 
@@ -173,7 +179,11 @@ func (sv *SerializeVisitor) VisitClassSelector(klass *ClassSelector) (struct{}, 
 // Matches Dart: _SerializeVisitor.visitIDSelector
 func (sv *SerializeVisitor) VisitIDSelector(id *IDSelector) (struct{}, error) {
 	_ = sv.sb.WriteByte('#')
-	_, _ = sv.sb.WriteString(id.Name)
+	name, err := util.ToCssIdentifier(id.Name)
+	if err != nil {
+		return struct{}{}, err
+	}
+	_, _ = sv.sb.WriteString(name)
 	return struct{}{}, nil
 }
 
@@ -184,7 +194,11 @@ func (sv *SerializeVisitor) VisitIDSelector(id *IDSelector) (struct{}, error) {
 func (sv *SerializeVisitor) VisitParentSelector(parent *ParentSelector) (struct{}, error) {
 	_ = sv.sb.WriteByte('&')
 	if parent.Suffix != nil {
-		_, _ = sv.sb.WriteString(*parent.Suffix)
+		suffix, err := util.ToCssIdentifierBody(*parent.Suffix)
+		if err != nil {
+			return struct{}{}, err
+		}
+		_, _ = sv.sb.WriteString(suffix)
 	}
 	return struct{}{}, nil
 }
@@ -194,7 +208,11 @@ func (sv *SerializeVisitor) VisitParentSelector(parent *ParentSelector) (struct{
 // Matches Dart: _SerializeVisitor.visitPlaceholderSelector
 func (sv *SerializeVisitor) VisitPlaceholderSelector(placeholder *PlaceholderSelector) (struct{}, error) {
 	_ = sv.sb.WriteByte('%')
-	_, _ = sv.sb.WriteString(placeholder.Name)
+	name, err := util.ToCssIdentifier(placeholder.Name)
+	if err != nil {
+		return struct{}{}, err
+	}
+	_, _ = sv.sb.WriteString(name)
 	return struct{}{}, nil
 }
 
@@ -215,7 +233,11 @@ func (sv *SerializeVisitor) VisitPseudoSelector(pseudo *PseudoSelector) (struct{
 	if !pseudo.IsSyntacticClass {
 		_ = sv.sb.WriteByte(':')
 	}
-	_, _ = sv.sb.WriteString(pseudo.Name)
+	pseudoName, err := util.ToCssIdentifier(pseudo.Name)
+	if err != nil {
+		return struct{}{}, err
+	}
+	_, _ = sv.sb.WriteString(pseudoName)
 	if pseudo.Argument == nil && pseudo.Selector == nil {
 		return struct{}{}, nil
 	}
@@ -248,8 +270,18 @@ func (sv *SerializeVisitor) VisitTypeSelector(typeSel *TypeSelector) (struct{}, 
 //
 // Matches Dart: _SerializeVisitor.visitUniversalSelector
 func (sv *SerializeVisitor) VisitUniversalSelector(universal *UniversalSelector) (struct{}, error) {
-	if universal.Namespace != nil {
-		_, _ = sv.sb.WriteString(*universal.Namespace)
+	switch universal.Namespace.(type) {
+	case nil, DefaultSelectorNamespace:
+	case AnySelectorNamespace:
+		_, _ = sv.sb.WriteString("*|")
+	case NoSelectorNamespace:
+		_ = sv.sb.WriteByte('|')
+	case NamedSelectorNamespace:
+		namespace, err := selectorNamespaceString(universal.Namespace)
+		if err != nil {
+			return struct{}{}, err
+		}
+		_, _ = sv.sb.WriteString(namespace)
 		_ = sv.sb.WriteByte('|')
 	}
 	_ = sv.sb.WriteByte('*')

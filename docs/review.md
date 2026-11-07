@@ -25,8 +25,8 @@ elsewhere: `embedded/` ↔ `lib/src/embedded/*` +
 `embedded_sass.proto`, `cmd/go-sass/` ↔ `lib/src/executable/*`. Review those
 only when the finding lives at the seam (e.g. error → proto mapping).
 
-Pin under review: `PORTED_FROM` (`00a0d7968f4a6d8ed044da35e3b04877d8b3e2b4`,
-v1.105.2 per `upstream.md`) must agree with the `dart-sass/` submodule
+Pin under review: `PORTED_FROM` (`91fd60be15d757697e924a45b2da4410a1beb3eb`,
+v1.106.0 per `upstream.md`) must agree with the `dart-sass/` submodule
 pin. Record both hashes in every finding log (§7).
 
 ## 2. File map (Dart → Go)

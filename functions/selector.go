@@ -239,7 +239,7 @@ func prependParent(compound *value.CompoundSelector, span sasscommon.FileSpan) (
 	case *value.UniversalSelector:
 		return nil, nil
 	case *value.TypeSelector:
-		if s.Name.Namespace != nil {
+		if !value.IsDefaultSelectorNamespace(s.Name.Namespace) {
 			return nil, nil
 		}
 		rest := compound.Components[1:]

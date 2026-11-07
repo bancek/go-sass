@@ -412,7 +412,7 @@ func TestAssertPublicPrivateDash(t *testing.T) {
 func TestAddOrInjectUnquotedString(t *testing.T) {
 	// An unquoted string expression should have its text inlined via addInterpolation
 	p := newTestStylesheetParser(`hello`)
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +460,7 @@ func TestAddOrInjectQuotedString(t *testing.T) {
 func TestAddOrInjectInterpolationExpression(t *testing.T) {
 	// Create a simple unquoted interpolation, which should be inlined
 	p := newTestStylesheetParser(`hello`)
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}

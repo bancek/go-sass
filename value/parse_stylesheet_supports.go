@@ -84,7 +84,7 @@ func (p *StylesheetParser) tryImportSupportsFunction() (SupportsCondition, error
 		return nil, nil
 	}
 	start := p.scanner.State()
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (p *StylesheetParser) supportsConditionInParens() (SupportsCondition, error
 	start := p.scanner.State()
 
 	if p.lookingAtInterpolatedIdentifier() {
-		identifier, err := p.interpolatedIdentifier()
+		identifier, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +314,7 @@ func (p *StylesheetParser) supportsConditionInParens() (SupportsCondition, error
 	p.scanner.SetState(nameStart)
 	p.inParentheses = wasInParentheses
 
-	identifier, err := p.interpolatedIdentifier()
+	identifier, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}

@@ -1409,7 +1409,7 @@ func TestIsHexColor3Digits(t *testing.T) {
 	p := newTestParserExpr("#abc")
 	p.scanner.ReadChar() // consume '#'
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1423,7 +1423,7 @@ func TestIsHexColor4Digits(t *testing.T) {
 	p := newTestParserExpr("#abcd")
 	p.scanner.ReadChar()
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1437,7 +1437,7 @@ func TestIsHexColor6Digits(t *testing.T) {
 	p := newTestParserExpr("#abc123")
 	p.scanner.ReadChar()
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1451,7 +1451,7 @@ func TestIsHexColor8Digits(t *testing.T) {
 	p := newTestParserExpr("#abcd1234")
 	p.scanner.ReadChar()
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1465,7 +1465,7 @@ func TestIsHexColorInvalidLength(t *testing.T) {
 	p := newTestParserExpr("#abc12")
 	p.scanner.ReadChar()
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1479,7 +1479,7 @@ func TestIsHexColorNonHex(t *testing.T) {
 	p := newTestParserExpr("#abcz")
 	p.scanner.ReadChar()
 	afterHash := p.scanner.State()
-	ident, err := p.interpolatedIdentifier()
+	ident, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1743,7 +1743,7 @@ func TestIdentifierLikeSimpleString(t *testing.T) {
 func TestNamespacedExpressionVariable(t *testing.T) {
 	p := newTestParserExpr("ns.$x")
 	// Must first consume "ns"
-	p.interpolatedIdentifier()
+	p.interpolatedIdentifier(false)
 	// Then consume "."
 	p.readChar()
 	start := p.scanner.State()
@@ -1766,7 +1766,7 @@ func TestNamespacedExpressionVariable(t *testing.T) {
 func TestNamespacedExpressionFunction(t *testing.T) {
 	p := newTestParserExpr("ns.func()")
 	// Consume "ns"
-	p.interpolatedIdentifier()
+	p.interpolatedIdentifier(false)
 	// Consume "."
 	p.readChar()
 	start := p.scanner.State()
@@ -1786,7 +1786,7 @@ func TestNamespacedExpressionFunction(t *testing.T) {
 func TestNamespacedExpressionPrivate(t *testing.T) {
 	p := newTestParserExpr("ns._private")
 	// Consume "ns"
-	p.interpolatedIdentifier()
+	p.interpolatedIdentifier(false)
 	// Consume "."
 	p.readChar()
 	start := p.scanner.State()
@@ -1803,7 +1803,7 @@ func TestNamespacedExpressionPrivate(t *testing.T) {
 func TestTryUrlContentsSimple(t *testing.T) {
 	p := newTestParserExpr("(foo)")
 	start := p.scanner.State()
-	interp, err := p.tryUrlContents(start, "url", false)
+	interp, err := p.tryUrlContents(start, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1815,7 +1815,7 @@ func TestTryUrlContentsSimple(t *testing.T) {
 func TestTryUrlContentsEmpty(t *testing.T) {
 	p := newTestParserExpr("()")
 	start := p.scanner.State()
-	interp, err := p.tryUrlContents(start, "url", false)
+	interp, err := p.tryUrlContents(start, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1827,7 +1827,7 @@ func TestTryUrlContentsEmpty(t *testing.T) {
 func TestTryUrlContentsNoParen(t *testing.T) {
 	p := newTestParserExpr("foo")
 	start := p.scanner.State()
-	interp, err := p.tryUrlContents(start, "url", false)
+	interp, err := p.tryUrlContents(start, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -93,7 +93,7 @@ func TestTypeSelectorAssertNotBogus(t *testing.T) {
 
 func TestTypeSelectorIsSuperselectorWildcardNS(t *testing.T) {
 	ns := "*"
-	s := NewTypeSelector(NewQualifiedNameWithNamespace("div", &ns), sasscommon.BogusSpan)
+	s := NewTypeSelector(NewQualifiedNameWithNamespace("div", testNamespace(ns)), sasscommon.BogusSpan)
 	target := NewTypeSelector(NewQualifiedName("div"), sasscommon.BogusSpan)
 	result, err := s.IsSuperselector(target)
 	if err != nil {

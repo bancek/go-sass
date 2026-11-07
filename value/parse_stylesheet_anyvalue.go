@@ -31,20 +31,17 @@ func (p *StylesheetParser) almostAnyValue(omitComments bool) (*Interpolation, er
 
 loop:
 	for {
-		switch ch := p.scanner.PeekChar(0); {
-		case ch == '\\':
-			// Copy both bytes literally: the result is re-parsed later,
-			// so escapes must survive this pass untouched.
-			c, err := p.readChar()
+		ch, escaped, err := p.peekCharOrEscape(0)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case escaped && ch != 'u' && ch != 'U':
+			interp, err := p.interpolatedIdentifier(false)
 			if err != nil {
 				return nil, err
 			}
-			buffer.WriteCharCode(c)
-			c, err = p.readChar()
-			if err != nil {
-				return nil, err
-			}
-			buffer.WriteCharCode(c)
+			buffer.AddInterpolation(interp)
 
 		case ch == '\'' || ch == '"':
 			interp, err := p.interpolatedStringToken()
@@ -91,7 +88,7 @@ loop:
 			// Route through a full interpolated identifier so suffixes
 			// like "#{...}--1" survive even though "--1" alone is not a
 			// valid identifier.
-			interp, err := p.interpolatedIdentifier()
+			interp, err := p.interpolatedIdentifier(false)
 			if err != nil {
 				return nil, err
 			}
@@ -112,20 +109,24 @@ loop:
 
 		case ch == 'u' || ch == 'U':
 			beforeUrl := p.scanner.State()
-			ident, err := p.identifier(false, false)
+			identifier, err := p.interpolatedIdentifier(false)
+			if err != nil {
+				return nil, err
+			}
+			plain, err := identifier.AsPlainIdentifier()
 			if err != nil {
 				return nil, err
 			}
 			// url-prefix is not standard CSS, but the old @document rule
 			// accepted it, so it stays supported for backwards
 			// compatibility. Anything else is plain text.
-			if ident != "url" && ident != "url-prefix" {
-				buffer.Write(ident)
+			if plain == nil || (*plain != "url" && *plain != "url-prefix") {
+				buffer.AddInterpolation(identifier)
 				continue
 			}
 			// Fall back to a single char when the text is not really a
 			// URL body, so the loop re-reads it as ordinary content.
-			if contents, err := p.tryUrlContents(beforeUrl, ident, false); err != nil {
+			if contents, err := p.tryUrlContents(beforeUrl, identifier, false); err != nil {
 				return nil, err
 			} else if contents != nil {
 				buffer.AddInterpolation(contents)
@@ -165,11 +166,11 @@ loop:
 			break loop
 
 		case p.lookingAtIdentifier(nil):
-			ident, err := p.identifier(false, false)
+			interp, err := p.interpolatedIdentifier(false)
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(ident)
+			buffer.AddInterpolation(interp)
 
 		default:
 			c, err := p.readChar()
@@ -214,6 +215,9 @@ type declarationValueOpts struct {
 	// consumeNewlines lets the indented syntax fold newlines into whitespace.
 	// Set it only where a statement cannot end.
 	consumeNewlines bool
+	// expression marks SassScript expression parsing, where escapes are
+	// normalized instead of preserved as written.
+	expression bool
 }
 
 // declarationValueOptsDefaults returns the Dart-matching defaults for
@@ -244,14 +248,17 @@ func (p *StylesheetParser) interpolatedDeclarationValue(opts declarationValueOpt
 
 loop:
 	for {
-		ch := p.scanner.PeekChar(0)
+		ch, escaped, err := p.peekCharOrEscape(0)
+		if err != nil {
+			return nil, err
+		}
 		switch {
-		case ch == '\\':
-			s, err := p.escape(true)
+		case escaped && ch != 'u' && ch != 'U':
+			interp, err := p.interpolatedIdentifier(opts.expression)
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(s)
+			buffer.AddInterpolation(interp)
 			wroteNewline = false
 
 		case ch == '\'' || ch == '"':
@@ -297,7 +304,7 @@ loop:
 		case ch == '#' && p.scanner.PeekChar(1) == '{':
 			// Full interpolated identifier again: "#{...}--1" needs the
 			// identifier path since "--1" is not valid on its own.
-			interp, err := p.interpolatedIdentifier()
+			interp, err := p.interpolatedIdentifier(opts.expression)
 			if err != nil {
 				return nil, err
 			}
@@ -383,16 +390,20 @@ loop:
 
 		case ch == 'u' || ch == 'U':
 			beforeUrl := p.scanner.State()
-			ident, err := p.identifier(false, false)
+			identifier, err := p.interpolatedIdentifier(false)
 			if err != nil {
 				return nil, err
 			}
-			if ident != "url" && ident != "url-prefix" {
-				buffer.Write(ident)
+			plain, err := identifier.AsPlainIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if plain == nil || (*plain != "url" && *plain != "url-prefix") {
+				buffer.AddInterpolation(identifier)
 				wroteNewline = false
 				continue
 			}
-			if contents, err := p.tryUrlContents(beforeUrl, ident, false); err != nil {
+			if contents, err := p.tryUrlContents(beforeUrl, identifier, false); err != nil {
 				return nil, err
 			} else if contents != nil {
 				buffer.AddInterpolation(contents)
@@ -418,22 +429,22 @@ loop:
 					break loop
 				}
 			}
-			c, err := p.readChar()
+			interp, err := p.interpolatedIdentifier(opts.expression)
 			if err != nil {
 				return nil, err
 			}
-			buffer.WriteCharCode(c)
+			buffer.AddInterpolation(interp)
 			wroteNewline = false
 
 		case ch < 0:
 			break loop
 
 		case p.lookingAtIdentifier(nil):
-			ident, err := p.identifier(false, false)
+			interp, err := p.interpolatedIdentifier(opts.expression)
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(ident)
+			buffer.AddInterpolation(interp)
 			wroteNewline = false
 
 		default:

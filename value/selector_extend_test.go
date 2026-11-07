@@ -29,7 +29,7 @@ func TestUnifyUniversalAndElementBothType(t *testing.T) {
 
 func TestUnifyUniversalAndElementUniversalWildcardNSType(t *testing.T) {
 	ns := "*"
-	u := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	u := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	t2 := NewTypeSelector(NewQualifiedName("div"), sasscommon.BogusSpan)
 	result, err := unifyUniversalAndElement(u, t2)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestUnifyUniversalAndElementUniversalWildcardNSType(t *testing.T) {
 func TestUnifyUniversalAndElementTypeUniversalWildcardNS(t *testing.T) {
 	t1 := NewTypeSelector(NewQualifiedName("span"), sasscommon.BogusSpan)
 	ns := "*"
-	u := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	u := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	result, err := unifyUniversalAndElement(t1, u)
 	if err != nil {
 		t.Fatal(err)
@@ -70,8 +70,8 @@ func TestUnifyUniversalAndElementTypeUniversalWildcardNS(t *testing.T) {
 func TestUnifyUniversalAndElementConflictingNS(t *testing.T) {
 	ns1 := "svg"
 	ns2 := "html"
-	u1 := NewUniversalSelector(sasscommon.BogusSpan, &ns1)
-	u2 := NewUniversalSelector(sasscommon.BogusSpan, &ns2)
+	u1 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns1))
+	u2 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns2))
 	result, err := unifyUniversalAndElement(u1, u2)
 	if err != nil {
 		t.Fatal(err)
@@ -102,8 +102,8 @@ func TestUnifyUniversalAndElementUniversalNilNameType(t *testing.T) {
 
 func TestUnifyUniversalAndElementBothUniversal(t *testing.T) {
 	ns := "svg"
-	u1 := NewUniversalSelector(sasscommon.BogusSpan, &ns)
-	u2 := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	u1 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
+	u2 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	result, err := unifyUniversalAndElement(u1, u2)
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +115,7 @@ func TestUnifyUniversalAndElementBothUniversal(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected UniversalSelector, got %T", result)
 	}
-	if us.Namespace == nil || *us.Namespace != "svg" {
+	if !selectorNamespaceEqual(us.Namespace, NamedNamespace("svg")) {
 		t.Errorf("Namespace = %v, want svg", us.Namespace)
 	}
 }

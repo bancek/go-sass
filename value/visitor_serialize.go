@@ -685,7 +685,7 @@ func isPrivateHighSurrogate(ch int) bool {
 // private-use code point. It ports the surrogate-pair branch of
 // _tryPrivateUseCharacter.
 func isSupplementaryPrivateUse(ch int) bool {
-	return (ch >= 0xF0000 && ch <= 0xFFFFD) || (ch >= 0x100000 && ch <= 0x10FFFD)
+	return ch >= 0xF0000 && ch <= 0x10FFFF
 }
 
 // utf8Decode decodes the first UTF-8 sequence in s, returning the

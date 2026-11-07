@@ -57,7 +57,7 @@ func skipAtRuleName(p *StylesheetParser) sasscommon.LineScannerState {
 	s := p.scanner.State()
 	if p.scanner.PeekChar(0) == '@' {
 		_ = p.expectChar('@')
-		_, _ = p.interpolatedIdentifier()
+		_, _ = p.interpolatedIdentifier(false)
 	}
 	return s
 }

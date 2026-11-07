@@ -140,7 +140,7 @@ func (s *UniversalSelector) Unify(comps []SimpleSelector) ([]SimpleSelector, err
 		return []SimpleSelector{s}, nil
 	}
 	// case _:
-	if s.Namespace == nil || *s.Namespace == "*" {
+	if IsDefaultSelectorNamespace(s.Namespace) || isAnySelectorNamespace(s.Namespace) {
 		r := make([]SimpleSelector, len(comps))
 		copy(r, comps)
 		return r, nil
@@ -396,7 +396,7 @@ func (s *TypeSelector) Equals(other SimpleSelector) bool {
 // A nil (default) namespace differs from `""` (none) and `"*"` (any).
 func (s *UniversalSelector) Equals(other SimpleSelector) bool {
 	o, ok := other.(*UniversalSelector)
-	return ok && ptrEq(s.Namespace, o.Namespace)
+	return ok && selectorNamespaceEqual(s.Namespace, o.Namespace)
 }
 
 // Equals reports whether other is the same pseudo: equal names, equal

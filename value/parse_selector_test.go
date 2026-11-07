@@ -440,11 +440,12 @@ func checkAttributeName(t *testing.T, input string, name string, namespace *stri
 	if ty.Name.Name != name {
 		t.Errorf("name = %q, want %q", ty.Name.Name, name)
 	}
-	if (ty.Name.Namespace == nil) != (namespace == nil) {
-		t.Errorf("namespace presence mismatch: got %v, want %v", ty.Name.Namespace, namespace)
+	wantNamespace := DefaultSelectorNS
+	if namespace != nil {
+		wantNamespace = testNamespace(*namespace)
 	}
-	if namespace != nil && ty.Name.Namespace != nil && *ty.Name.Namespace != *namespace {
-		t.Errorf("namespace = %q, want %q", *ty.Name.Namespace, *namespace)
+	if !selectorNamespaceEqual(ty.Name.Namespace, wantNamespace) {
+		t.Errorf("namespace = %v, want %v", ty.Name.Namespace, wantNamespace)
 	}
 }
 
@@ -533,7 +534,7 @@ func TestUniversalSelectorWildcardNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected UniversalSelector, got %T", sel)
 	}
-	if us.Namespace == nil || *us.Namespace != "*" {
+	if !isAnySelectorNamespace(us.Namespace) {
 		t.Errorf("namespace = %v, want '*'", us.Namespace)
 	}
 }
@@ -548,7 +549,7 @@ func TestTypeSelectorWithWildcardNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected TypeSelector, got %T", sel)
 	}
-	if ty.Name.Namespace == nil || *ty.Name.Namespace != "*" {
+	if !isAnySelectorNamespace(ty.Name.Namespace) {
 		t.Errorf("namespace = %v, want '*'", ty.Name.Namespace)
 	}
 }
@@ -563,7 +564,7 @@ func TestUniversalSelectorEmptyNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected UniversalSelector, got %T", sel)
 	}
-	if us.Namespace == nil || *us.Namespace != "" {
+	if _, ok := us.Namespace.(NoSelectorNamespace); !ok {
 		t.Errorf("namespace = %v, want ''", us.Namespace)
 	}
 }
@@ -578,7 +579,7 @@ func TestTypeSelectorEmptyNamespace(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected TypeSelector, got %T", sel)
 	}
-	if ty.Name.Namespace == nil || *ty.Name.Namespace != "" {
+	if _, ok := ty.Name.Namespace.(NoSelectorNamespace); !ok {
 		t.Errorf("namespace = %v, want ''", ty.Name.Namespace)
 	}
 }
@@ -596,8 +597,8 @@ func TestTypeSelectorPlain(t *testing.T) {
 	if ty.Name.Name != "div" {
 		t.Errorf("name = %q, want 'div'", ty.Name.Name)
 	}
-	if ty.Name.Namespace != nil {
-		t.Error("expected nil namespace")
+	if !IsDefaultSelectorNamespace(ty.Name.Namespace) {
+		t.Error("expected the default namespace")
 	}
 }
 

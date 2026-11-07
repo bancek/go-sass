@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/bancek/go-sass/sassurl"
 
@@ -58,6 +57,23 @@ func ParseIdentifier(text string) (string, error) {
 func IsIdentifier(text string) bool {
 	_, err := ParseIdentifier(text)
 	return err == nil
+}
+
+// ResolveCssEscapes interprets text as a CSS identifier and resolves any
+// escape codes it contains.
+//
+// Matches Dart: StringExtension.resolveCssEscapes
+func ResolveCssEscapes(text string) (string, error) {
+	if util.IsSimpleIdentifier(text) {
+		return text, nil
+	}
+	result, err := ParseIdentifier(text)
+	if err != nil {
+		return "", &sasscommon.ArgumentError{
+			Message: "\"" + text + "\" isn't a valid CSS identifier",
+		}
+	}
+	return result, nil
 }
 
 // IsVariableDeclarationLike returns whether text starts like a variable declaration.
@@ -307,29 +323,22 @@ func (p *Parser) identifier(normalize bool, unit bool) (string, error) {
 		}
 	}
 
-	switch ch := p.scanner.PeekChar(0); {
-	case ch < 0:
+	if p.scanner.IsDone() {
 		return "", p.scanner.Error("Expected identifier.", -1, 0)
+	}
+	ch, escaped, err := p.readCharOrEscape()
+	if err != nil {
+		return "", err
+	}
+	switch {
 	case ch == '_' && normalize:
-		_, err := p.readChar()
-		if err != nil {
-			return "", err
-		}
 		sb.WriteByte('-')
+	case escaped:
+		sb.WriteRune(rune(ch))
 	case util.IsNameStart(ch):
-		c, err := p.readChar()
-		if err != nil {
-			return "", err
-		}
-		sb.WriteRune(rune(c))
-	case ch == '\\':
-		s, err := p.escape(true)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(s)
+		sb.WriteRune(rune(ch))
 	default:
-		return "", p.scanner.Error("Expected identifier.", -1, 0)
+		return "", p.scanner.Error("Expected identifier.", p.scanner.Position()-1, 0)
 	}
 
 	if err := p._identifierBody(&sb, normalize, unit); err != nil {
@@ -353,38 +362,40 @@ func (p *Parser) identifierBody() (string, error) {
 
 func (p *Parser) _identifierBody(sb *strings.Builder, normalize bool, unit bool) error {
 	for {
-		switch ch := p.scanner.PeekChar(0); {
+		ch, escaped, err := p.peekCharOrEscape(0)
+		if err != nil {
+			return err
+		}
+		switch {
 		case ch < 0:
 			return nil
 		case ch == '-' && unit:
-			// Disallow `-` followed by a dot or a digit in units.
-			next := p.scanner.PeekChar(1)
-			if next == '.' || util.IsDigit(next) {
-				return nil
-			}
-			_, err := p.readChar()
-			if err != nil {
+			beforeDash := p.scanner.State()
+			if _, _, err := p.readCharOrEscape(); err != nil {
 				return err
+			}
+			// Disallow `-` followed by a dot or a digit in units.
+			next := p.scanner.PeekChar(0)
+			if next == '.' || util.IsDigit(next) {
+				p.scanner.SetState(beforeDash)
+				return nil
 			}
 			sb.WriteByte('-')
 		case ch == '_' && normalize:
-			_, err := p.readChar()
-			if err != nil {
+			if _, _, err := p.readCharOrEscape(); err != nil {
 				return err
 			}
 			sb.WriteByte('-')
+		case escaped:
+			if _, _, err := p.readCharOrEscape(); err != nil {
+				return err
+			}
+			sb.WriteRune(rune(ch))
 		case util.IsName(ch):
-			c, err := p.readChar()
-			if err != nil {
+			if _, _, err := p.readCharOrEscape(); err != nil {
 				return err
 			}
-			sb.WriteRune(rune(c))
-		case ch == '\\':
-			s, err := p.escape(false)
-			if err != nil {
-				return err
-			}
-			sb.WriteString(s)
+			sb.WriteRune(rune(ch))
 		default:
 			return nil
 		}
@@ -431,7 +442,7 @@ func (p *Parser) string() (string, error) {
 					return "", err
 				}
 			} else {
-				ch, err := p.escapeCharacter()
+				ch, err := p.escape()
 				if err != nil {
 					return "", err
 				}
@@ -494,14 +505,6 @@ func (p *Parser) declarationValue(allowEmpty bool) (string, error) {
 		switch {
 		case next < 0:
 			goto done
-
-		case next == '\\':
-			s, err := p.escape(true)
-			if err != nil {
-				return sb.String(), err
-			}
-			sb.WriteString(s)
-			wroteNewline = false
 
 		case next == '"' || next == '\'':
 			text, err := p.rawText(func() error { _, err := p.string(); return err })
@@ -598,21 +601,27 @@ func (p *Parser) declarationValue(allowEmpty bool) (string, error) {
 			if url != "" {
 				sb.WriteString(url)
 			} else {
-				c, err := p.readChar()
+				text, err := p.rawText(func() error {
+					_, err := p.identifier(false, false)
+					return err
+				})
 				if err != nil {
 					return sb.String(), err
 				}
-				sb.WriteRune(rune(c))
+				sb.WriteString(text)
 			}
 			wroteNewline = false
 
 		default:
 			if p.lookingAtIdentifier(nil) {
-				s, err := p.identifier(false, false)
+				text, err := p.rawText(func() error {
+					_, err := p.identifier(false, false)
+					return err
+				})
 				if err != nil {
 					return sb.String(), err
 				}
-				sb.WriteString(s)
+				sb.WriteString(text)
 			} else {
 				c, err := p.readChar()
 				if err != nil {
@@ -671,11 +680,14 @@ func (p *Parser) tryUrl() (string, error) {
 			goto fail
 
 		case ch == '\\':
-			s, err := p.escape(false)
+			text, err := p.rawText(func() error {
+				_, err := p.escape()
+				return err
+			})
 			if err != nil {
 				return "", err
 			}
-			sb.WriteString(s)
+			sb.WriteString(text)
 
 		case ch == '%' || ch == '&' || ch == '#' || (ch >= '*' && ch <= '~') || ch >= 0x0080:
 			c, err := p.readChar()
@@ -725,78 +737,49 @@ func (p *Parser) variableName() (string, error) {
 
 // --- Escape sequences ---
 
-// escape consumes an escape sequence and returns the text that defines it.
+// escape consumes an escape sequence and returns the character it represents.
 //
-// When identifierStart is true the result normalizes as though at the
-// beginning of an identifier (leading digits re-encode as hex escapes; a
-// valid name character decodes to itself). This follows the CSS Syntax
-// consume-escaped-code-point algorithm.
-func (p *Parser) escape(identifierStart bool) (string, error) {
-	start := p.scanner.Position()
-	if err := p.expectChar('\\'); err != nil {
-		return "", err
-	}
-	value := 0
-	switch ch := p.scanner.PeekChar(0); {
-	case ch < 0:
-		return "", p.scanner.Error("Expected escape sequence.", -1, 0)
-	case util.IsNewline(ch):
-		return "", p.scanner.Error("Expected escape sequence.", -1, 0)
-	// Up to 6 hex digits, then one optional whitespace character is
-	// swallowed as the escape terminator.
-	case util.IsHex(ch):
-		for range 6 {
-			next := p.scanner.PeekChar(0)
-			if next < 0 || !util.IsHex(next) {
-				break
-			}
-			value <<= 4
-			hex, err := p.readChar()
-			if err != nil {
-				return "", err
-			}
-			value += util.AsHex(hex)
-		}
-		_, err := p.scanCharIf(util.IsWhitespace)
-		if err != nil {
-			return "", err
-		}
-	default:
-		v, err := p.readChar()
-		if err != nil {
-			return "", err
-		}
-		value = v
-	}
-
-	if identifierStart && util.IsNameStart(value) || !identifierStart && util.IsName(value) {
-		// A valid name character decodes to itself; surrogates and
-		// out-of-range code points are an error here (the string-level
-		// escape helper substitutes U+FFFD instead).
-		if value < 0 || value >= 0xD800 && value <= 0xDFFF || value > unicode.MaxRune {
-			return "", p.scanner.Error("Invalid Unicode code point.", start, p.scanner.Position()-start)
-		}
-		return string(rune(value)), nil
-	} else if value <= 0x1F || value == 0x7F || (identifierStart && util.IsDigit(value)) {
-		// Control characters, DEL, and (at an identifier start) digits
-		// cannot appear literally, so re-encode them as hex escapes.
-		var sb strings.Builder
-		sb.WriteByte('\\')
-		if value > 0xF {
-			sb.WriteByte(byte(hexCharFor(value >> 4)))
-		}
-		sb.WriteByte(byte(hexCharFor(value & 0xF)))
-		sb.WriteByte(' ')
-		return sb.String(), nil
-	} else {
-		return string(rune('\\')) + string(rune(value)), nil
-	}
+// Matches Dart: Parser.escape
+func (p *Parser) escape() (int, error) {
+	return consumeEscapedCharacter(p.scanner)
 }
 
-// escapeCharacter consumes an escape sequence and returns the character
-// it represents.
-func (p *Parser) escapeCharacter() (int, error) {
-	return consumeEscapedCharacter(p.scanner)
+// peekCharOrEscape returns the character offset characters ahead without
+// consuming it. If the character begins an escape, the resolved escape value
+// is returned instead of the backslash; the second result reports whether an
+// escape was parsed.
+//
+// Matches Dart: Parser.peekCharOrEscape
+func (p *Parser) peekCharOrEscape(offset int) (int, bool, error) {
+	if p.scanner.PeekChar(offset) == '\\' {
+		start := p.scanner.State()
+		for range offset {
+			if _, err := p.readChar(); err != nil {
+				return 0, false, err
+			}
+		}
+		value, err := p.escape()
+		p.scanner.SetState(start)
+		if err != nil {
+			return 0, false, err
+		}
+		return value, true, nil
+	}
+	return p.scanner.PeekChar(offset), false, nil
+}
+
+// readCharOrEscape consumes and returns the next character. If it begins an
+// escape, the resolved escape value is returned; the second result reports
+// whether an escape was parsed.
+//
+// Matches Dart: Parser.readCharOrEscape
+func (p *Parser) readCharOrEscape() (int, bool, error) {
+	if p.scanner.PeekChar(0) == '\\' {
+		value, err := p.escape()
+		return value, true, err
+	}
+	value, err := p.readChar()
+	return value, false, err
 }
 
 // --- Character matching ---
@@ -837,7 +820,7 @@ func (p *Parser) scanIdentChar(ch int, caseSensitive bool) (bool, error) {
 		return true, nil
 	case next == '\\':
 		start := p.scanner.State()
-		ch, err := p.escapeCharacter()
+		ch, err := p.escape()
 		if err != nil {
 			p.scanner.SetState(start)
 			return false, err
@@ -1333,7 +1316,7 @@ func consumeEscapedCharacter(scanner *sasscommon.SpanScanner) (int, error) {
 	}
 	switch ch := scanner.PeekChar(0); {
 	case ch < 0:
-		return 0, scanner.Error("Expected escape sequence.", scanner.Position(), 0)
+		return 0xFFFD, nil
 	case util.IsNewline(ch):
 		return 0, scanner.Error("Expected escape sequence.", scanner.Position(), 0)
 	case util.IsHex(ch):
@@ -1355,7 +1338,7 @@ func consumeEscapedCharacter(scanner *sasscommon.SpanScanner) (int, error) {
 			}
 		}
 		switch {
-		case value == 0, value >= 0xD800 && value <= 0xDFFF, value >= util.MaxAllowedCharacter:
+		case value == 0, value >= 0xD800 && value <= 0xDFFF, value > util.MaxAllowedCharacter:
 			return 0xFFFD, nil
 		default:
 			return value, nil

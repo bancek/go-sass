@@ -218,19 +218,20 @@ func unifyUniversalAndElement(s1, s2 SimpleSelector) (SimpleSelector, error) {
 		return nil, err
 	}
 
-	var ns *string
-	if ptrEq(ns1, ns2) || (ns2 != nil && *ns2 == "*") {
+	var ns SelectorNamespace
+	switch {
+	case selectorNamespaceEqual(ns1, ns2), isAnySelectorNamespace(ns2):
 		ns = ns1
-	} else if ns1 != nil && *ns1 == "*" {
+	case isAnySelectorNamespace(ns1):
 		ns = ns2
-	} else {
+	default:
 		return nil, nil
 	}
 
 	var n *string
-	if ptrEq(n1, n2) || n2 == nil {
+	if ptrEqStr(n1, n2) || n2 == nil {
 		n = n1
-	} else if n1 == nil || (n1 != nil && *n1 == "*") {
+	} else if n1 == nil {
 		n = n2
 	} else {
 		return nil, nil
@@ -249,7 +250,7 @@ func unifyUniversalAndElement(s1, s2 SimpleSelector) (SimpleSelector, error) {
 // namespaceAndName splits s into its namespace and name parts. A universal
 // selector contributes only a namespace (nil name); anything else is a caller
 // bug and reports an error naming the offending selector kind.
-func namespaceAndName(s SimpleSelector) (ns, name *string, err error) {
+func namespaceAndName(s SimpleSelector) (ns SelectorNamespace, name *string, err error) {
 	switch v := s.(type) {
 	case *UniversalSelector:
 		return v.Namespace, nil, nil
@@ -1207,8 +1208,7 @@ func compCompsIsSuperselector(a, b []SimpleSelector, parents ...*ComplexSelector
 		return true, nil
 	}
 	if len(b) == 0 {
-		star := "*"
-		b = []SimpleSelector{NewUniversalSelector(sasscommon.BogusSpan, &star)}
+		b = []SimpleSelector{NewUniversalSelector(sasscommon.BogusSpan, AnySelectorNS)}
 	}
 	ca, err := NewCompoundSelector(a, sasscommon.BogusSpan)
 	if err != nil {
@@ -1319,7 +1319,7 @@ func selectorPseudoIsSuperselector(p *PseudoSelector, c2 *CompoundSelector, pare
 				switch sb := sb.(type) {
 				case *TypeSelector:
 					for _, sa := range c.Components[len(c.Components)-1].Selector.Components {
-						if ta, ok := sa.(*TypeSelector); ok && (ta.Name.Name != sb.Name.Name || !ptrEq(ta.Name.Namespace, sb.Name.Namespace)) {
+						if ta, ok := sa.(*TypeSelector); ok && (ta.Name.Name != sb.Name.Name || !selectorNamespaceEqual(ta.Name.Namespace, sb.Name.Namespace)) {
 							found = true
 						}
 					}

@@ -108,16 +108,7 @@ func (p *KeyframeSelectorParser) _percentage() (string, error) {
 		}
 	}
 
-	ok, err := p.scanIdentChar('e', true)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		ok, err = p.scanIdentChar('E', true)
-		if err != nil {
-			return "", err
-		}
-	}
+	ok := p.scanner.ScanChar('e') || p.scanner.ScanChar('E')
 	if ok {
 		sb.WriteByte('e')
 		if ch := p.scanner.PeekChar(0); ch == '+' || ch == '-' {

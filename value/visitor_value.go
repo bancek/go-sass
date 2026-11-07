@@ -85,7 +85,13 @@ func (sv *SerializeVisitor) VisitNumber(value SassNumber) (struct{}, error) {
 	} else {
 		sv.writeNumber(value.NumValue())
 		if len(value.NumNumeratorUnits()) == 1 {
-			_, _ = sv.sb.WriteString(value.NumNumeratorUnits()[0])
+			unit := value.NumNumeratorUnits()[0]
+			if isUnitAmbiguousWithExponent(unit) {
+				_, _ = sv.sb.WriteString("\\65 ")
+				_, _ = sv.sb.WriteString(unit[1:])
+			} else {
+				_, _ = sv.sb.WriteString(unit)
+			}
 		}
 	}
 	return struct{}{}, nil

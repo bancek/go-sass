@@ -8,15 +8,15 @@ import (
 
 func TestNewUniversalSelector(t *testing.T) {
 	s := NewUniversalSelector(sasscommon.BogusSpan, nil)
-	if s.Namespace != nil {
-		t.Error("Namespace should be nil")
+	if !IsDefaultSelectorNamespace(s.Namespace) {
+		t.Error("Namespace should be the default namespace")
 	}
 }
 
 func TestNewUniversalSelectorWithNamespace(t *testing.T) {
 	ns := "svg"
-	s := NewUniversalSelector(sasscommon.BogusSpan, &ns)
-	if s.Namespace == nil || *s.Namespace != "svg" {
+	s := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
+	if !selectorNamespaceEqual(s.Namespace, NamedNamespace("svg")) {
 		t.Error("Namespace should be 'svg'")
 	}
 }
@@ -58,12 +58,12 @@ func TestUniversalSelectorEquals(t *testing.T) {
 	}
 
 	ns := "svg"
-	s3 := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	s3 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	if s1.Equals(s3) {
 		t.Error("Different namespace should not be equal")
 	}
 
-	s4 := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	s4 := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	if !s3.Equals(s4) {
 		t.Error("Same namespace should be equal")
 	}
@@ -71,7 +71,7 @@ func TestUniversalSelectorEquals(t *testing.T) {
 
 func TestUniversalSelectorIsSuperselectorWildcardNamespace(t *testing.T) {
 	ns := "*"
-	s := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	s := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	target := NewTypeSelector(NewQualifiedName("div"), sasscommon.BogusSpan)
 	result, err := s.IsSuperselector(target)
 	if err != nil {
@@ -108,7 +108,7 @@ func TestUniversalSelectorString(t *testing.T) {
 
 func TestUniversalSelectorStringWithNamespace(t *testing.T) {
 	ns := "svg"
-	s := NewUniversalSelector(sasscommon.BogusSpan, &ns)
+	s := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
 	got, err := s.String()
 	if err != nil {
 		t.Fatal(err)
@@ -128,8 +128,8 @@ func TestUniversalSelectorAssertNotBogus(t *testing.T) {
 
 func TestUniversalSelectorIsSuperselectorTypeNS(t *testing.T) {
 	ns := "svg"
-	s := NewUniversalSelector(sasscommon.BogusSpan, &ns)
-	target := NewTypeSelector(NewQualifiedNameWithNamespace("circle", &ns), sasscommon.BogusSpan)
+	s := NewUniversalSelector(sasscommon.BogusSpan, testNamespace(ns))
+	target := NewTypeSelector(NewQualifiedNameWithNamespace("circle", testNamespace(ns)), sasscommon.BogusSpan)
 	result, err := s.IsSuperselector(target)
 	if err != nil {
 		t.Fatal(err)

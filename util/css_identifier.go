@@ -18,40 +18,79 @@ import (
 // ToCssIdentifier returns a minimally-escaped CSS identifier whose contents
 // evaluates to text.
 //
-// Only characters that need escaping are escaped; everything else passes
-// through raw. Returns an error if text cannot be represented as a CSS
-// identifier: the empty string, U+0000, or a lone surrogate.
+// If body is true, characters that are valid in an identifier body but not at
+// its start are left unescaped.
 //
-// Matches Dart: StringExtension.toCssIdentifier (util/string.dart)
+// Returns an error if text cannot be represented as a CSS identifier: the
+// empty string, U+0000, or a lone surrogate.
 //
-// # Divergence from Dart
-//
-// Dart stores strings as UTF-16 code units, so surrogates are real and
-// must be handled. Go strings are UTF-8 and cannot contain individual
-// surrogates. Non-BMP code points (> U+FFFF) are represented as single
-// runes. The surrogate handling is kept as a safety check but should
-// never trigger on valid UTF-8 input.
+// Matches Dart: StringExtension.toCssIdentifier
 func ToCssIdentifier(text string) (string, error) {
+	return toCssIdentifier(text, false)
+}
+
+// ToCssIdentifierBody is ToCssIdentifier with body mode enabled.
+//
+// Matches Dart: StringExtension.toCssIdentifier(body: true)
+func ToCssIdentifierBody(text string) (string, error) {
+	return toCssIdentifier(text, true)
+}
+
+// TryCssIdentifier returns the escaped identifier for text, or false when
+// text cannot be represented as one.
+//
+// Matches Dart: StringExtension.tryCssIdentifier
+func TryCssIdentifier(text string) (string, bool) {
+	result, err := ToCssIdentifier(text)
+	return result, err == nil
+}
+
+// IsSimpleIdentifier reports whether text is a valid CSS identifier whose
+// semantic content is the text itself.
+//
+// This is a quick optimization check: it may return false negatives, but not
+// false positives.
+//
+// Matches Dart: StringExtension._isSimpleIdentifier
+func IsSimpleIdentifier(text string) bool {
+	first := true
+	for _, ch := range text {
+		if first {
+			if !IsNameStart(int(ch)) || IsPrivateUseBMP(int(ch)) || ch > 0xFFFF {
+				return false
+			}
+			first = false
+			continue
+		}
+		if !IsName(int(ch)) || IsPrivateUseBMP(int(ch)) || ch > 0xFFFF {
+			return false
+		}
+	}
+	return !first
+}
+
+func isPrivateUseSupplementary(ch int) bool {
+	return ch >= 0xF0000 && ch <= 0x10FFFF
+}
+
+func toCssIdentifier(text string, body bool) (string, error) {
+	if IsSimpleIdentifier(text) {
+		return text, nil
+	}
+
 	scanner := sasscommon.NewSpanScanner([]byte(text), nil)
 
-	// Writes ch as a lowercase-hex backslash escape, with a disambiguating
-	// trailing space when the next character is itself hex (otherwise the
-	// escape would swallow it).
-	//
-	// Matches Dart: writeEscape in toCssIdentifier
-	writeEscape := func(buf *strings.Builder, ch rune) {
-		buf.WriteRune('\\')
+	// Writes ch as a lowercase-hex backslash escape. Dart always writes a
+	// trailing space so the escape can't swallow a following hex digit.
+	writeHexEscape := func(buf *strings.Builder, ch int) {
+		buf.WriteByte('\\')
 		buf.WriteString(strconv.FormatInt(int64(ch), 16))
-		if next := scanner.PeekChar(0); next >= 0 && IsHex(next) {
-			buf.WriteRune(' ')
-		}
+		buf.WriteByte(' ')
 	}
 
 	// Consumes a surrogate pair: a lone high surrogate is an error, a pair
 	// over a private-use plane escapes as its combined code point, and any
 	// other pair passes through raw.
-	//
-	// Matches Dart: consumeSurrogatePair in toCssIdentifier
 	consumeSurrogatePair := func(buf *strings.Builder) error {
 		high, err := scanner.ReadChar()
 		if err != nil {
@@ -60,7 +99,7 @@ func ToCssIdentifier(text string) (string, error) {
 		next := scanner.PeekChar(0)
 		if next < 0 || !IsLowSurrogate(next) {
 			return scanner.Error(
-				"An individual surrogate can't be represented as a CSS identifier.",
+				"An individual surrogates can't be represented as a CSS identifier.",
 				scanner.Position(), 1,
 			)
 		}
@@ -69,7 +108,7 @@ func ToCssIdentifier(text string) (string, error) {
 			return err
 		}
 		if IsPrivateUseHighSurrogate(int(high)) {
-			writeEscape(buf, rune(CombineSurrogates(int(high), int(low))))
+			writeHexEscape(buf, CombineSurrogates(int(high), int(low)))
 		} else {
 			buf.WriteRune(rune(high))
 			buf.WriteRune(rune(low))
@@ -78,57 +117,69 @@ func ToCssIdentifier(text string) (string, error) {
 	}
 
 	var buf strings.Builder
-	// A lone "-" is not a valid identifier start, so it escapes as its own
-	// hex form; a "--" prefix passes through since custom properties are
-	// always representable.
-	if scanner.ScanChar('-') {
+	doubleDash := false
+	if !body && scanner.ScanChar('-') {
 		if scanner.IsDone() {
-			return "\\2d", nil
+			return "\\2d ", nil
 		}
-		buf.WriteRune('-')
+		buf.WriteByte('-')
 		if scanner.ScanChar('-') {
-			buf.WriteRune('-')
-			goto body
+			buf.WriteByte('-')
+			doubleDash = true
 		}
 	}
 
-	// The first character follows name-start rules (name-start or escaped)
-	// while the body below follows the looser name rules; private-use BMP
-	// characters always escape so they never surface raw.
-	switch ch := scanner.PeekChar(0); {
-	case ch < 0:
-		return "", scanner.Error(
-			"The empty string can't be represented as a CSS identifier.", -1, 0)
-	case ch == 0:
-		return "", scanner.Error(
-			"The U+0000 can't be represented as a CSS identifier.", -1, 0)
-	case IsHighSurrogate(ch):
-		if err := consumeSurrogatePair(&buf); err != nil {
-			return "", err
+	if !doubleDash {
+		switch ch := scanner.PeekChar(0); {
+		case ch < 0:
+			return "", scanner.Error(
+				"The empty string can't be represented as a CSS identifier.", -1, 0)
+		case ch == 0:
+			return "", scanner.Error(
+				"U+0000 can't be represented as a CSS identifier.", -1, 0)
+		case IsHighSurrogate(ch):
+			if err := consumeSurrogatePair(&buf); err != nil {
+				return "", err
+			}
+		case IsLowSurrogate(ch):
+			scanner.ReadChar()
+			return "", scanner.Error(
+				"An individual surrogate can't be represented as a CSS identifier.",
+				scanner.Position()-1, 1)
+		case isPrivateUseSupplementary(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			writeHexEscape(&buf, c)
+		case body && IsName(ch) && !IsPrivateUseBMP(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			buf.WriteRune(rune(c))
+		case !body && IsNameStart(ch) && !IsPrivateUseBMP(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			buf.WriteRune(rune(c))
+		case ch <= 0x1F || ch == 0x7F || IsDigit(ch) || IsPrivateUseBMP(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			writeHexEscape(&buf, c)
+		default:
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			buf.WriteByte('\\')
+			buf.WriteRune(rune(c))
 		}
-	case IsLowSurrogate(ch):
-		scanner.ReadChar()
-		return "", scanner.Error(
-			"An individual surrogate can't be represented as a CSS identifier.",
-			scanner.Position()-1, 1)
-	case IsNameStart(ch) && !IsPrivateUseBMP(ch):
-		c, err := scanner.ReadChar()
-		if err != nil {
-			return "", err
-		}
-		buf.WriteRune(rune(c))
-	default:
-		c, err := scanner.ReadChar()
-		if err != nil {
-			return "", err
-		}
-		writeEscape(&buf, rune(c))
 	}
 
-body:
-	// The identifier body: name characters pass through raw (except
-	// private-use BMP, which escapes); anything else escapes. U+0000 and
-	// lone surrogates are errors.
 	for {
 		switch ch := scanner.PeekChar(0); {
 		case ch < 0:
@@ -145,18 +196,31 @@ body:
 			return "", scanner.Error(
 				"An individual surrogate can't be represented as a CSS identifier.",
 				scanner.Position()-1, 1)
+		case isPrivateUseSupplementary(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			writeHexEscape(&buf, c)
 		case IsName(ch) && !IsPrivateUseBMP(ch):
 			c, err := scanner.ReadChar()
 			if err != nil {
 				return "", err
 			}
 			buf.WriteRune(rune(c))
+		case ch <= 0x1F || ch == 0x7F || IsPrivateUseBMP(ch):
+			c, err := scanner.ReadChar()
+			if err != nil {
+				return "", err
+			}
+			writeHexEscape(&buf, c)
 		default:
 			c, err := scanner.ReadChar()
 			if err != nil {
 				return "", err
 			}
-			writeEscape(&buf, rune(c))
+			buf.WriteByte('\\')
+			buf.WriteRune(rune(c))
 		}
 	}
 }

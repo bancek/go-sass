@@ -10,7 +10,7 @@ func newTestStylesheetParser(text string) *StylesheetParser {
 
 func TestInterpolatedIdentifierSimple(t *testing.T) {
 	p := newTestStylesheetParser("foo")
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestInterpolatedIdentifierSimple(t *testing.T) {
 
 func TestInterpolatedIdentifierDoubleDash(t *testing.T) {
 	p := newTestStylesheetParser("--prop")
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestInterpolatedIdentifierDoubleDash(t *testing.T) {
 
 func TestInterpolatedIdentifierUnderscore(t *testing.T) {
 	p := newTestStylesheetParser("_foo")
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestInterpolatedIdentifierEscape(t *testing.T) {
 	// \41 = 'A'. Hex escape consumes up to 6 digits, so need
 	// non-hex terminator. Just test \41 alone (single-char input).
 	p := newTestStylesheetParser(`\41`)
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,15 +56,24 @@ func TestInterpolatedIdentifierEscape(t *testing.T) {
 	if plain == nil {
 		t.Fatal("AsPlain() returned nil")
 	}
-	if *plain != "A" {
-		t.Errorf("AsPlain() = %q, want %q", *plain, "A")
+	if *plain != `\41` {
+		t.Errorf("AsPlain() = %q, want %q", *plain, `\41`)
+	}
+
+	expr, err := newTestStylesheetParser(`\41`).interpolatedIdentifier(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exprPlain := expr.AsPlain()
+	if exprPlain == nil || *exprPlain != "A" {
+		t.Errorf("expression AsPlain() = %v, want %q", exprPlain, "A")
 	}
 }
 
 func TestInterpolatedIdentifierEscapeBody(t *testing.T) {
 	// f\6fo -> escape \6f = 'o', body reads 'o' -> "foo"
 	p := newTestStylesheetParser(`f\6fo`)
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,14 +81,23 @@ func TestInterpolatedIdentifierEscapeBody(t *testing.T) {
 	if plain == nil {
 		t.Fatal("AsPlain() returned nil")
 	}
-	if *plain != "foo" {
-		t.Errorf("AsPlain() = %q, want %q", *plain, "foo")
+	if *plain != `f\6fo` {
+		t.Errorf("AsPlain() = %q, want %q", *plain, `f\6fo`)
+	}
+
+	expr, err := newTestStylesheetParser(`f\6fo`).interpolatedIdentifier(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exprPlain := expr.AsPlain()
+	if exprPlain == nil || *exprPlain != "foo" {
+		t.Errorf("expression AsPlain() = %v, want %q", exprPlain, "foo")
 	}
 }
 
 func TestInterpolatedIdentifierErrorEmpty(t *testing.T) {
 	p := newTestStylesheetParser("")
-	_, err := p.interpolatedIdentifier()
+	_, err := p.interpolatedIdentifier(false)
 	if err == nil {
 		t.Error("expected error for empty input")
 	}
@@ -87,7 +105,7 @@ func TestInterpolatedIdentifierErrorEmpty(t *testing.T) {
 
 func TestInterpolatedIdentifierErrorDigit(t *testing.T) {
 	p := newTestStylesheetParser("1foo")
-	_, err := p.interpolatedIdentifier()
+	_, err := p.interpolatedIdentifier(false)
 	if err == nil {
 		t.Error("expected error for digit-start input")
 	}
@@ -96,7 +114,7 @@ func TestInterpolatedIdentifierErrorDigit(t *testing.T) {
 func TestInterpolatedIdentifierBodySimple(t *testing.T) {
 	p := newTestStylesheetParser("foo")
 	p.scanner.ScanChar('f')
-	interp, err := p.interpolatedIdentifierBody()
+	interp, err := p.interpolatedIdentifierBody(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +126,7 @@ func TestInterpolatedIdentifierBodySimple(t *testing.T) {
 func TestInterpolatedIdentifierBodyErrorEmpty(t *testing.T) {
 	p := newTestStylesheetParser(".")
 	p.scanner.ScanChar('.')
-	_, err := p.interpolatedIdentifierBody()
+	_, err := p.interpolatedIdentifierBody(false)
 	if err == nil {
 		t.Error("expected error for empty body")
 	}
@@ -119,7 +137,7 @@ func TestInterpolatedIdentifierBodyErrorEmpty(t *testing.T) {
 
 func TestInterpolatedIdentifierInterpolation(t *testing.T) {
 	p := newTestStylesheetParser(`#{$var}rest`)
-	interp, err := p.interpolatedIdentifier()
+	interp, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +152,7 @@ func TestInterpolatedIdentifierInterpolation(t *testing.T) {
 func TestInterpolatedIdentifierBodyInterpolation(t *testing.T) {
 	p := newTestStylesheetParser(`f#{$var}`)
 	p.scanner.ScanChar('f')
-	interp, err := p.interpolatedIdentifierBody()
+	interp, err := p.interpolatedIdentifierBody(false)
 	if err != nil {
 		t.Fatal(err)
 	}

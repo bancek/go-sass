@@ -349,7 +349,7 @@ func (p *StylesheetParser) attributeSelector() (*InterpolatedAttributeSelector, 
 			return nil, istErr
 		}
 	} else {
-		value, err = p.interpolatedIdentifier()
+		value, err = p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +360,7 @@ func (p *StylesheetParser) attributeSelector() (*InterpolatedAttributeSelector, 
 
 	var modifier *Interpolation
 	if p.lookingAtInterpolatedIdentifier() {
-		modifier, err = p.interpolatedIdentifier()
+		modifier, err = p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -394,7 +394,7 @@ func (p *StylesheetParser) attributeName() (*InterpolatedQualifiedName, error) {
 		if err := p.expectChar('|'); err != nil {
 			return nil, err
 		}
-		name, err := p.interpolatedIdentifier()
+		name, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -411,7 +411,7 @@ func (p *StylesheetParser) attributeName() (*InterpolatedQualifiedName, error) {
 			return nil, err
 		}
 		namespace := NewInterpolationPlain("", spanTo)
-		name, err := p.interpolatedIdentifier()
+		name, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +422,7 @@ func (p *StylesheetParser) attributeName() (*InterpolatedQualifiedName, error) {
 		return NewInterpolatedQualifiedName(name, span, namespace), nil
 	}
 
-	nameOrNamespace, err := p.interpolatedIdentifier()
+	nameOrNamespace, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (p *StylesheetParser) attributeName() (*InterpolatedQualifiedName, error) {
 	if _, err := p.readChar(); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +502,7 @@ func (p *StylesheetParser) classSelector() (*InterpolatedClassSelector, error) {
 	if err := p.expectChar('.'); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +519,7 @@ func (p *StylesheetParser) idSelector() (*InterpolatedIDSelector, error) {
 	if err := p.expectChar('#'); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +536,7 @@ func (p *StylesheetParser) placeholderSelector() (*InterpolatedPlaceholderSelect
 	if err := p.expectChar('%'); err != nil {
 		return nil, err
 	}
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +558,7 @@ func (p *StylesheetParser) parentSelector() (*InterpolatedParentSelector, error)
 	var suffix *Interpolation
 	if p.lookingAtInterpolatedIdentifierBody() {
 		var err error
-		suffix, err = p.interpolatedIdentifierBody()
+		suffix, err = p.interpolatedIdentifierBody(false)
 		if err != nil {
 			return nil, err
 		}
@@ -589,7 +589,7 @@ func (p *StylesheetParser) pseudoSelector() (*InterpolatedPseudoSelector, error)
 		return nil, err
 	}
 	element := p.scanner.ScanChar(':')
-	name, err := p.interpolatedIdentifier()
+	name, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -683,7 +683,7 @@ func (p *StylesheetParser) typeOrUniversalSelector() (InterpolatedSimpleSelector
 			}
 			return NewInterpolatedUniversalSelector(span, namespace), nil
 		}
-		name, err := p.interpolatedIdentifier()
+		name, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -706,7 +706,7 @@ func (p *StylesheetParser) typeOrUniversalSelector() (InterpolatedSimpleSelector
 			}
 			return NewInterpolatedUniversalSelector(span, namespace), nil
 		}
-		name, err := p.interpolatedIdentifier()
+		name, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}
@@ -718,7 +718,7 @@ func (p *StylesheetParser) typeOrUniversalSelector() (InterpolatedSimpleSelector
 			NewInterpolatedQualifiedName(name, span, namespace)), nil
 	}
 
-	nameOrNamespace, err := p.interpolatedIdentifier()
+	nameOrNamespace, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return nil, err
 	}
@@ -736,7 +736,7 @@ func (p *StylesheetParser) typeOrUniversalSelector() (InterpolatedSimpleSelector
 		}
 		return NewInterpolatedUniversalSelector(span, nameOrNamespace), nil
 	} else {
-		name, err := p.interpolatedIdentifier()
+		name, err := p.interpolatedIdentifier(false)
 		if err != nil {
 			return nil, err
 		}

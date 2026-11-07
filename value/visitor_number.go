@@ -45,3 +45,25 @@ func (sv *SerializeVisitor) writeNumberToString(v float64) string {
 func (sv *SerializeVisitor) writeRounded(text string) {
 	util.WriteRoundedTo(sv.sb, text, sv.isCompressed())
 }
+
+// isUnitAmbiguousWithExponent reports whether unit, serialized without
+// escapes, would parse as a numeric exponent.
+//
+// Matches Dart: _isUnitAmbiguousWithExponent
+func isUnitAmbiguousWithExponent(unit string) bool {
+	if len(unit) == 1 {
+		return false
+	}
+	first := unit[0]
+	if first != 'e' && first != 'E' {
+		return false
+	}
+	next := unit[1]
+	if next == '-' {
+		if len(unit) == 2 {
+			return false
+		}
+		next = unit[2]
+	}
+	return next >= '0' && next <= '9'
+}

@@ -155,7 +155,7 @@ func (s *AttributeSelector) String() (string, error) {
 // Spans never contribute to selector hashes; value and modifier only apply
 // when an operator is present.
 func (s *AttributeSelector) HashCode() int {
-	h := hashCombine(stringHashCode(s.Name.Name), hashPtr(s.Name.Namespace))
+	h := hashCombine(stringHashCode(s.Name.Name), selectorNamespaceHashCode(s.Name.Namespace))
 	if s.Op != nil {
 		h = hashCombine(h, int(*s.Op))
 		if s.Value != nil {

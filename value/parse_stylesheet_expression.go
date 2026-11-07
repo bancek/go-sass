@@ -680,8 +680,12 @@ loop:
 			// `!=` is an operator; `!important` (with any whitespace gap, or
 			// EOF/`i` right after `!`) is an operand; anything else ends the
 			// expression.
-			switch p.scanner.PeekChar(1) {
-			case '=':
+			next, escaped, peekErr := p.peekCharOrEscape(1)
+			if peekErr != nil {
+				return nil, peekErr
+			}
+			switch {
+			case next == '=' && !escaped:
 				if _, _err := p.readChar(); _err != nil {
 					return nil, _err
 				}
@@ -691,7 +695,7 @@ loop:
 				if err := addOperator(BinaryOperatorNotEquals); err != nil {
 					return nil, err
 				}
-			case -1, 'i', 'I':
+			case next < 0 || next == 'i' || next == 'I':
 				expr, _err := p.importantExpression()
 				if _err != nil {
 					return nil, _err
@@ -1227,7 +1231,7 @@ func (p *StylesheetParser) hashExpression() (Expression, error) {
 	}
 
 	afterHash := p.scanner.State()
-	identifier, identErr := p.interpolatedIdentifier()
+	identifier, identErr := p.interpolatedIdentifier(true)
 	if identErr != nil {
 		return nil, identErr
 	}
@@ -1631,6 +1635,10 @@ func (p *StylesheetParser) number() (*NumberExpression, error) {
 		if err != nil {
 			return nil, err
 		}
+		u, err = util.ToCssIdentifier(u)
+		if err != nil {
+			return nil, err
+		}
 		unit = &u
 	}
 
@@ -1919,7 +1927,7 @@ func (p *StylesheetParser) interpolatedString() (*StringExpression, error) {
 					p.scanner.ScanChar('\n')
 				}
 			} else {
-				ch, err := p.escapeCharacter()
+				ch, err := p.escape()
 				if err != nil {
 					return nil, err
 				}
@@ -2011,7 +2019,7 @@ func (p *StylesheetParser) interpolatedStringToken() (*Interpolation, error) {
 					}
 				}
 			} else {
-				text, err := p.rawText(func() error { _, err := p.escapeCharacter(); return err })
+				text, err := p.rawText(func() error { _, err := p.escape(); return err })
 				if err != nil {
 					return nil, err
 				}
@@ -2053,16 +2061,24 @@ func (p *StylesheetParser) identifierLike() (Expression, error) {
 	}
 
 	start := p.scanner.State()
-	identifier, err := p.interpolatedIdentifier()
+	identifier, err := p.interpolatedIdentifier(true)
 	if err != nil {
 		return nil, err
 	}
 	if identifier == nil {
 		return nil, nil
 	}
-	plain := identifier.AsPlain()
+	plain, err := identifier.AsPlainIdentifier()
+	if err != nil {
+		return nil, err
+	}
 	var lower string
 	if plain != nil {
+		if *plain == "\uFFFD" {
+			if end := start.Position + 2; p.scanner.Substring(start.Position, &end) == "\\0" {
+				return NewStringExpressionPlain("\\0 ", p.scanner.SpanFrom(start), false), nil
+			}
+		}
 		if *plain == "if" && p.scanner.PeekChar(0) == '(' {
 			beforeParen := p.scanner.State()
 			invocation, invErr := p.argumentInvocation(argumentInvocationOpts{})
@@ -2494,7 +2510,7 @@ func (p *StylesheetParser) ifGroup() (IfConditionExpression, error) {
 			}
 			return NewIfConditionSass(expression, p.scanner.SpanFrom(start)), nil
 		}
-		identifier, identErr := p.interpolatedIdentifier()
+		identifier, identErr := p.interpolatedIdentifier(true)
 		if identErr != nil {
 			return nil, identErr
 		}
@@ -2519,7 +2535,7 @@ func (p *StylesheetParser) ifGroup() (IfConditionExpression, error) {
 		if err := p.whitespace(true); err != nil {
 			return nil, err
 		}
-		expression, exprErr := p.interpolatedDeclarationValue(declarationValueOpts{allowEmpty: true, allowSemicolon: true, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: true})
+		expression, exprErr := p.interpolatedDeclarationValue(declarationValueOpts{expression: true, allowEmpty: true, allowSemicolon: true, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: true})
 		if exprErr != nil {
 			return nil, exprErr
 		}
@@ -2583,7 +2599,7 @@ func (p *StylesheetParser) tryArbitrarySubstitution() (IfConditionExpression, er
 				name = NewInterpolationPlain("attr", p.scanner.SpanFrom(start))
 			} else if p.scanner.PeekChar(0) == '-' && p.scanner.PeekChar(1) == '-' {
 				var identErr error
-				name, identErr = p.interpolatedIdentifier()
+				name, identErr = p.interpolatedIdentifier(true)
 				if identErr != nil {
 					return nil, identErr
 				}
@@ -2601,7 +2617,7 @@ func (p *StylesheetParser) tryArbitrarySubstitution() (IfConditionExpression, er
 		return nil, nil
 	}
 
-	arguments, argErr := p.interpolatedDeclarationValue(declarationValueOpts{allowEmpty: true, allowSemicolon: true, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: true})
+	arguments, argErr := p.interpolatedDeclarationValue(declarationValueOpts{expression: true, allowEmpty: true, allowSemicolon: true, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: true})
 	if argErr != nil {
 		return nil, argErr
 	}
@@ -2856,7 +2872,7 @@ func (p *StylesheetParser) trySpecialFunction(name string, start sasscommon.Line
 				}
 				p.scanner.SetState(beforeArg)
 
-				value, valErr := p.interpolatedDeclarationValue(declarationValueOpts{allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
+				value, valErr := p.interpolatedDeclarationValue(declarationValueOpts{expression: true, allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
 				if valErr != nil {
 					return nil, valErr
 				}
@@ -2948,7 +2964,7 @@ func (p *StylesheetParser) trySpecialFunction(name string, start sasscommon.Line
 				}
 				buffer.WriteCharCode('(')
 
-				val, valErr := p.interpolatedDeclarationValue(declarationValueOpts{allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
+				val, valErr := p.interpolatedDeclarationValue(declarationValueOpts{expression: true, allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
 				if valErr != nil {
 					return nil, valErr
 				}
@@ -3010,7 +3026,7 @@ func (p *StylesheetParser) trySpecialFunction(name string, start sasscommon.Line
 			return nil, nil
 
 		case "url":
-			contents, urlErr := p.tryUrlContents(start, "", vendored)
+			contents, urlErr := p.tryUrlContents(start, nil, vendored)
 			if urlErr != nil {
 				return nil, urlErr
 			}
@@ -3030,7 +3046,7 @@ calcLike:
 		buffer.Write(name)
 		buffer.WriteCharCode('(')
 	}
-	val, valErr := p.interpolatedDeclarationValue(declarationValueOpts{allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
+	val, valErr := p.interpolatedDeclarationValue(declarationValueOpts{expression: true, allowEmpty: true, allowSemicolon: false, allowColon: true, allowOpenBrace: true, endAfterOf: false, silentComments: true, consumeNewlines: false})
 	if valErr != nil {
 		return nil, valErr
 	}
@@ -3068,7 +3084,7 @@ calcLike:
 // polation character set mirrors the base URL parser — most changes here
 // should be mirrored there.
 // Matches Dart: StylesheetParser._tryUrlContents (parse/stylesheet.dart).
-func (p *StylesheetParser) tryUrlContents(start sasscommon.LineScannerState, name string, vendored bool) (*Interpolation, error) {
+func (p *StylesheetParser) tryUrlContents(start sasscommon.LineScannerState, name *Interpolation, vendored bool) (*Interpolation, error) {
 	beginningOfContents := p.scanner.State()
 	if !p.scanner.ScanChar('(') {
 		return nil, nil
@@ -3089,11 +3105,11 @@ func (p *StylesheetParser) tryUrlContents(start sasscommon.LineScannerState, nam
 	}
 
 	buffer := &InterpolationBuffer{}
-	n := name
-	if n == "" {
-		n = "url"
+	if name != nil {
+		buffer.AddInterpolation(name)
+	} else {
+		buffer.Write("url")
 	}
-	buffer.Write(n)
 	buffer.WriteCharCode('(')
 
 	for {
@@ -3104,11 +3120,11 @@ func (p *StylesheetParser) tryUrlContents(start sasscommon.LineScannerState, nam
 			return nil, nil
 
 		case ch == '\\':
-			s, err := p.escape(false)
+			value, err := p.escape()
 			if err != nil {
 				return nil, err
 			}
-			buffer.Write(s)
+			buffer.Write(util.CharacterToEscape(value, false))
 
 		case ch == '#' && p.scanner.PeekChar(1) == '{':
 			expr, span, siErr := p.singleInterpolation()
@@ -3195,7 +3211,7 @@ func (p *StylesheetParser) dynamicUrl() (Expression, error) {
 	if err := p.expectIdentifier("url", "", true); err != nil {
 		return nil, err
 	}
-	contents, urlErr := p.tryUrlContents(start, "url", false)
+	contents, urlErr := p.tryUrlContents(start, nil, false)
 	if urlErr != nil {
 		return nil, urlErr
 	}

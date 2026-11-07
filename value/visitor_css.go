@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/bancek/go-sass/sasscommon"
+	"github.com/bancek/go-sass/util"
 )
 
 // ---- CssVisitor implementations ----
@@ -182,7 +183,11 @@ func (sv *SerializeVisitor) writeMediaQuery(q CssMediaQuery) error {
 		_ = sv.sb.WriteByte(' ')
 	}
 	if q.Type != nil {
-		_, _ = sv.sb.WriteString(*q.Type)
+		mediaType, err := util.ToCssIdentifier(*q.Type)
+		if err != nil {
+			return err
+		}
+		_, _ = sv.sb.WriteString(mediaType)
 		if len(q.Conditions) > 0 {
 			_, _ = sv.sb.WriteString(" and ")
 		}

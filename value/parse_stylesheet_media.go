@@ -84,7 +84,7 @@ func (p *StylesheetParser) mediaQuery(buffer *InterpolationBuffer) error {
 		return nil
 	}
 
-	identifier1, err := p.interpolatedIdentifier()
+	identifier1, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (p *StylesheetParser) mediaQuery(buffer *InterpolationBuffer) error {
 	}
 
 	buffer.WriteCharCode(' ')
-	identifier2, err := p.interpolatedIdentifier()
+	identifier2, err := p.interpolatedIdentifier(false)
 	if err != nil {
 		return err
 	}
