@@ -1,6 +1,7 @@
 package value
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bancek/go-sass/sassurl"
@@ -231,5 +232,45 @@ func TestInterpolationMapExpandRightStopsAtNonWhitespace(t *testing.T) {
 	}
 	if got != 5 {
 		t.Errorf("expandInterpolationSpanRight(3) = %d, want 5", got)
+	}
+}
+
+func TestInterpolationMapExpandLeftFindsLastHashBrace(t *testing.T) {
+	// The opener is the last `#{` before the start offset, whatever the
+	// comments contain.
+	source := "// */\n#{foo}"
+	fs := sasscommon.NewFileSource([]byte(source), nil)
+	span := sasscommon.NewSimpleFileSpan(fs, 0, len(source))
+	m, err := NewInterpolationMap(NewInterpolationPlain(source, span), []int{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.expandInterpolationSpanLeft(len(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.LastIndex(source, "#{"); got != want {
+		t.Errorf("expandInterpolationSpanLeft = %d, want %d", got, want)
+	}
+}
+
+func TestInterpolationMapExpandLeftWithoutOpener(t *testing.T) {
+	// Regression test: with no `#{` opener before the start, the old backward
+	// scan walked through a `// */` pattern and indexed before the start of
+	// the source. The scan is now a plain last-index lookup, which reports
+	// -1 like Dart's lastIndexOf.
+	source := "// */\nfoo"
+	fs := sasscommon.NewFileSource([]byte(source), nil)
+	span := sasscommon.NewSimpleFileSpan(fs, 0, len(source))
+	m, err := NewInterpolationMap(NewInterpolationPlain(source, span), []int{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.expandInterpolationSpanLeft(len(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != -1 {
+		t.Errorf("expandInterpolationSpanLeft = %d, want -1", got)
 	}
 }

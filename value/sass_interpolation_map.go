@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
@@ -359,17 +360,11 @@ func (m *InterpolationMap) indexInContents(target sasscommon.SourceLocation) int
 // opening `#`, given the start offset of a FileSpan covering an interpolated
 // expression.
 //
-// The scan walks left looking for `#{`, skipping over block comments so a
-// `#{` inside `/* ... */` is not mistaken for the opener. A `#{` inside a
-// single-line comment can still fool it, but the result feeds error reporting
-// only, where that imprecision is acceptable. Empty sources fall back to two
-// characters before the start (the assumed `#{` width).
-//
-// Note that this can be tricked by a `#{` that appears within a single-line
-// comment before the expression, but since it's only used for error reporting
-// that's probably fine. (Dart: _expandInterpolationSpanLeft.)
+// Note that this can be tricked by a `#{` that appears within a comment
+// before the expression, but since that's very unlikely and this is only
+// used for error reporting that's probably fine. (Dart:
+// _expandInterpolationSpanLeft.)
 func (m *InterpolationMap) expandInterpolationSpanLeft(startOffset int) (int, error) {
-	var source string
 	interpSpan, err := m.interpolation.Span()
 	if err != nil {
 		return 0, err
@@ -378,43 +373,11 @@ func (m *InterpolationMap) expandInterpolationSpanLeft(startOffset int) (int, er
 	if err != nil {
 		return 0, err
 	}
-	if f != nil {
-		source = f.Text()
-	}
-	if source == "" {
+	if f == nil {
 		return startOffset - 2, nil
 	}
-	i := startOffset - 1
-	for i >= 0 {
-		prev := source[i]
-		i--
-		if prev == '{' {
-			if i >= 0 && source[i] == '#' {
-				break
-			}
-		} else if prev == '/' {
-			if i >= 0 {
-				second := source[i]
-				i--
-				if second == '*' {
-					for {
-						char := source[i]
-						i--
-						if char != '*' {
-							continue
-						}
-						for i >= 0 && source[i] == '*' {
-							i--
-						}
-						if i >= 0 && source[i] == '/' {
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-	return i, nil
+	source := f.Text()
+	return strings.LastIndex(source[:min(startOffset, len(source))], "#{"), nil
 }
 
 // expandInterpolationSpanRight returns the offset of the next character that
