@@ -1321,8 +1321,15 @@ type InboundMessage_CompileRequest struct {
 	SilenceDeprecation []string `protobuf:"bytes,16,rep,name=silence_deprecation,json=silenceDeprecation,proto3" json:"silence_deprecation,omitempty"`
 	// Deprecation IDs to opt into early.
 	FutureDeprecation []string `protobuf:"bytes,17,rep,name=future_deprecation,json=futureDeprecation,proto3" json:"future_deprecation,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Deprecation IDs to treat as normal deprecations, even if they appear in
+	// `fatal_deprecation`.
+	//
+	// The compiler must throw an error if a deprecation appears here and not in
+	// `fatal_deprecation` (including deprecations marked fatal via version
+	// number).
+	FatalDeprecationExcept []string `protobuf:"bytes,18,rep,name=fatal_deprecation_except,json=fatalDeprecationExcept,proto3" json:"fatal_deprecation_except,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *InboundMessage_CompileRequest) Reset() {
@@ -1474,6 +1481,13 @@ func (x *InboundMessage_CompileRequest) GetSilenceDeprecation() []string {
 func (x *InboundMessage_CompileRequest) GetFutureDeprecation() []string {
 	if x != nil {
 		return x.FutureDeprecation
+	}
+	return nil
+}
+
+func (x *InboundMessage_CompileRequest) GetFatalDeprecationExcept() []string {
+	if x != nil {
+		return x.FatalDeprecationExcept
 	}
 	return nil
 }
@@ -4221,7 +4235,7 @@ var File_embedded_sass_proto protoreflect.FileDescriptor
 
 const file_embedded_sass_proto_rawDesc = "" +
 	"\n" +
-	"\x13embedded_sass.proto\x12\x16sass.embedded_protocol\"\xc0\x15\n" +
+	"\x13embedded_sass.proto\x12\x16sass.embedded_protocol\"\xfa\x15\n" +
 	"\x0eInboundMessage\x12`\n" +
 	"\x0fcompile_request\x18\x02 \x01(\v25.sass.embedded_protocol.InboundMessage.CompileRequestH\x00R\x0ecompileRequest\x12r\n" +
 	"\x15canonicalize_response\x18\x03 \x01(\v2;.sass.embedded_protocol.InboundMessage.CanonicalizeResponseH\x00R\x14canonicalizeResponse\x12`\n" +
@@ -4230,7 +4244,8 @@ const file_embedded_sass_proto_rawDesc = "" +
 	"\x16function_call_response\x18\x06 \x01(\v2;.sass.embedded_protocol.InboundMessage.FunctionCallResponseH\x00R\x14functionCallResponse\x12`\n" +
 	"\x0fversion_request\x18\a \x01(\v25.sass.embedded_protocol.InboundMessage.VersionRequestH\x00R\x0eversionRequest\x1a \n" +
 	"\x0eVersionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x1a\xcd\t\n" +
+	"\x02id\x18\x01 \x01(\rR\x02id\x1a\x87\n" +
+	"\n" +
 	"\x0eCompileRequest\x12[\n" +
 	"\x06string\x18\x02 \x01(\v2A.sass.embedded_protocol.InboundMessage.CompileRequest.StringInputH\x00R\x06string\x12\x14\n" +
 	"\x04path\x18\x03 \x01(\tH\x00R\x04path\x129\n" +
@@ -4252,7 +4267,8 @@ const file_embedded_sass_proto_rawDesc = "" +
 	"\x06silent\x18\x0e \x01(\bR\x06silent\x12+\n" +
 	"\x11fatal_deprecation\x18\x0f \x03(\tR\x10fatalDeprecation\x12/\n" +
 	"\x13silence_deprecation\x18\x10 \x03(\tR\x12silenceDeprecation\x12-\n" +
-	"\x12future_deprecation\x18\x11 \x03(\tR\x11futureDeprecation\x1a\xcb\x01\n" +
+	"\x12future_deprecation\x18\x11 \x03(\tR\x11futureDeprecation\x128\n" +
+	"\x18fatal_deprecation_except\x18\x12 \x03(\tR\x16fatalDeprecationExcept\x1a\xcb\x01\n" +
 	"\vStringInput\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x126\n" +

@@ -9,7 +9,7 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `811ecc67bc5ed16d410d76e8bde343d9770f08c0` (2026-10-21, `PORTED_FROM`) |
+| dart-sass commit    | `455cbc0508b3fb9952a6fc0bb000a58e46ef8574` (2026-10-28, `PORTED_FROM`) |
 | dart-sass version   | 1.106.1                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
@@ -45,9 +45,9 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `811ecc67` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
-| `sass-spec`          | `fd1b9497`                   | the spec suite expectations                                                               |
-| `sass`               | `88142a47`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
+| `dart-sass`          | `455cbc05` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `sass-spec`          | `1e2e5dda`                   | the spec suite expectations                                                               |
+| `sass`               | `53e8d75`                    | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
 | `embedded-host-node` | `c60459d` (host `1.106.1`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
 

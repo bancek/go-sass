@@ -181,7 +181,11 @@ func parseOptions(sassIO sassio.IO, args []string) (*cliOptions, *usageError) {
 
 	var fatalDeprecation, silenceDeprecation, futureDeprecation []string
 	fs.StringArrayVar(&fatalDeprecation, "fatal-deprecation", nil,
-		"Deprecations to treat as errors. You may also pass a Sass version to include any behavior deprecated in or before it.")
+		"Deprecations to treat as errors. You may also pass a Sass\n"+
+			"version to include any behavior deprecated in or before it,\n"+
+			"or -{deprecation} to exclude a deprecation that would be included\n"+
+			"by version. See https://sass-lang.com/documentation/breaking-changes\n"+
+			"for a complete list.")
 	fs.StringArrayVar(&silenceDeprecation, "silence-deprecation", nil, "Deprecations to ignore.")
 	fs.StringArrayVar(&futureDeprecation, "future-deprecation", nil, "Opt in to a deprecation early.")
 
@@ -247,15 +251,15 @@ func parseOptions(sassIO sassio.IO, args []string) (*cliOptions, *usageError) {
 		importers = append(importers, eval.NewNodePackageImporter(".", sassIO))
 	}
 
-	silenceDeprecations, ue := resolveDeprecations(silenceDeprecation)
+	silenceDeprecations, ue := resolveDeprecations(splitCommas(silenceDeprecation))
 	if ue != nil {
 		return nil, ue
 	}
-	futureDeprecations, ue := resolveDeprecations(futureDeprecation)
+	futureDeprecations, ue := resolveDeprecations(splitCommas(futureDeprecation))
 	if ue != nil {
 		return nil, ue
 	}
-	fatalDeprecations, ue := resolveFatalDeprecations(fatalDeprecation)
+	fatalDeprecations, ue := resolveFatalDeprecations(splitCommas(fatalDeprecation))
 	if ue != nil {
 		return nil, ue
 	}
@@ -604,6 +608,16 @@ func resolveEmitSourceMap(fs *pflag.FlagSet, sourceMap bool, sourceMapURLs strin
 }
 
 // resolveDeprecations resolves deprecation ids, rejecting unknown ones.
+// splitCommas splits repeated option values on commas, the way Dart's args
+// package handles multi-options.
+func splitCommas(values []string) []string {
+	var out []string
+	for _, value := range values {
+		out = append(out, strings.Split(value, ",")...)
+	}
+	return out
+}
+
 func resolveDeprecations(ids []string) ([]*deprecation.Deprecation, *usageError) {
 	var out []*deprecation.Deprecation
 	for _, id := range ids {
@@ -621,6 +635,8 @@ func resolveDeprecations(ids []string) ([]*deprecation.Deprecation, *usageError)
 func resolveFatalDeprecations(ids []string) ([]*deprecation.Deprecation, *usageError) {
 	var out []*deprecation.Deprecation
 	seen := map[*deprecation.Deprecation]bool{}
+	var excluded []*deprecation.Deprecation
+	excludedSeen := map[*deprecation.Deprecation]bool{}
 	add := func(d *deprecation.Deprecation) {
 		if !seen[d] {
 			seen[d] = true
@@ -628,6 +644,23 @@ func resolveFatalDeprecations(ids []string) ([]*deprecation.Deprecation, *usageE
 		}
 	}
 	for _, id := range ids {
+		if name, ok := strings.CutPrefix(id, "-"); ok {
+			d := deprecation.FromID(name)
+			if d == nil {
+				return nil, &usageError{message: fmt.Sprintf("Invalid deprecation %q.", id)}
+			}
+			if !excludedSeen[d] {
+				excludedSeen[d] = true
+				excluded = append(excluded, d)
+			}
+			continue
+		} else if id == "dart-sass-2" {
+			for _, d := range deprecation.DartSass2() {
+				add(d)
+			}
+			continue
+		}
+
 		if d := deprecation.FromID(id); d != nil {
 			add(d)
 			continue
@@ -644,6 +677,21 @@ func resolveFatalDeprecations(ids []string) ([]*deprecation.Deprecation, *usageE
 		for _, d := range deprecation.ForVersion(id) {
 			add(d)
 		}
+	}
+
+	for _, d := range excluded {
+		if !seen[d] {
+			return nil, &usageError{message: fmt.Sprintf(
+				"The fatal deprecation %q was excluded without first being included.", d)}
+		}
+		delete(seen, d)
+		kept := out[:0]
+		for _, keptDeprecation := range out {
+			if keptDeprecation != d {
+				kept = append(kept, keptDeprecation)
+			}
+		}
+		out = kept
 	}
 	return out, nil
 }

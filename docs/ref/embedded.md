@@ -33,7 +33,9 @@ Packets are **length-delimited**: `[varint length][varint compilation_id]
   or reuses a `ReusableIsolate`): a compile request first (producing a
   compile response — success or failure — on the same compilation id), then
   canonicalize/import/file-import/function-call responses correlated by
-  request id.
+  request id. Fatal deprecation selectors may name IDs or versions, and
+  `fatal_deprecation_except` removes IDs that the other selectors included;
+  excluding one that no selector included is a `PARAMS` protocol error.
 - **Host callbacks** are synchronous request/response within a compilation;
   the compiler sends canonicalize/import/file-import/function-call requests
   and blocks awaiting the response (`host_callable.go`, `importer_host.go`).

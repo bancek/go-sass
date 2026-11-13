@@ -204,7 +204,24 @@ func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) 
 		logger = NewEmbeddedLogger(c, request.GetAlertColor(), request.GetAlertAscii())
 	}
 
-	fatalDeprecations := c.parseDeprecationsOrWarn(request.GetFatalDeprecation(), true, logger)
+	fatalSelectors := c.parseDeprecationsOrWarn(request.GetFatalDeprecation(), true, logger)
+	fatalDeprecations := map[*deprecation.Deprecation]struct{}{}
+	for _, d := range fatalSelectors {
+		fatalDeprecations[d] = struct{}{}
+	}
+	for _, d := range c.parseDeprecationsOrWarn(request.GetFatalDeprecationExcept(), false, logger) {
+		if _, ok := fatalDeprecations[d]; !ok {
+			return nil, paramsError(fmt.Sprintf(
+				"The deprecation %q was excluded from a DeprecationSelectorDifference that didn't include it.", d))
+		}
+		delete(fatalDeprecations, d)
+	}
+	var fatalDeprecationList []*deprecation.Deprecation
+	for _, d := range fatalSelectors {
+		if _, ok := fatalDeprecations[d]; ok {
+			fatalDeprecationList = append(fatalDeprecationList, d)
+		}
+	}
 	silenceDeprecations := c.parseDeprecationsOrWarn(request.GetSilenceDeprecation(), false, logger)
 	futureDeprecations := c.parseDeprecationsOrWarn(request.GetFutureDeprecation(), false, logger)
 
@@ -278,7 +295,7 @@ func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) 
 			request.GetVerbose(),
 			request.GetSourceMap(),
 			request.GetCharset(),
-			fatalDeprecations,
+			fatalDeprecationList,
 			silenceDeprecations,
 			futureDeprecations,
 			request.GetAlertColor(),
@@ -303,7 +320,7 @@ func (c *CompilationDispatcher) compile(request *InboundMessage_CompileRequest) 
 			AlertColor:          request.GetAlertColor(),
 			AlertAscii:          request.GetAlertAscii(),
 			SilenceDeprecations: silenceDeprecations,
-			FatalDeprecations:   fatalDeprecations,
+			FatalDeprecations:   fatalDeprecationList,
 			FutureDeprecations:  futureDeprecations,
 		}
 
@@ -418,7 +435,9 @@ func (c *CompilationDispatcher) parseDeprecationsOrWarn(deprecations []string, s
 		if d := deprecation.FromID(item); d != nil {
 			result = append(result, d)
 		} else if supportVersions {
-			expanded := deprecation.ForVersion(item)
+			expanded := deprecation.ForVersionInternal(item, func(d *deprecation.Deprecation, message string) error {
+				return logger.WarnDeprecation(message, nil, d, nil)
+			})
 			if len(expanded) > 0 {
 				result = append(result, expanded...)
 			} else {

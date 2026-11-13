@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/bancek/go-sass/compile"
+	"github.com/bancek/go-sass/deprecation"
 	"github.com/bancek/go-sass/sassio"
 )
 
@@ -144,6 +145,63 @@ func TestInvalidDeprecation(t *testing.T) {
 	if got := parseErr(t, "--silence-deprecation=nope", "a.scss"); got != `Invalid deprecation "nope".` {
 		t.Errorf("message = %q", got)
 	}
+}
+
+func TestInvalidExcludedDeprecation(t *testing.T) {
+	if got := parseErr(t, "--fatal-deprecation=-nope", "a.scss"); got != `Invalid deprecation "-nope".` {
+		t.Errorf("message = %q", got)
+	}
+}
+
+func TestFatalDeprecationExclusions(t *testing.T) {
+	o, err := parseArgs("--fatal-deprecation=1.106.0,-import", "a.scss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasDeprecation(o.fatalDeprecations, "new-global") {
+		t.Error("expected new-global to be fatal")
+	}
+	if hasDeprecation(o.fatalDeprecations, "import") {
+		t.Error("expected import to be excluded")
+	}
+
+	if got := parseErr(t, "--fatal-deprecation=-import", "a.scss"); got != `The fatal deprecation "import" was excluded without first being included.` {
+		t.Errorf("message = %q", got)
+	}
+}
+
+func TestSilenceDeprecationCommaSeparated(t *testing.T) {
+	o, err := parseArgs("--silence-deprecation=import,global-builtin", "a.scss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(o.silenceDeprecations) != 2 {
+		t.Fatalf("silence deprecations = %d, want 2", len(o.silenceDeprecations))
+	}
+}
+
+func TestFatalDeprecationDartSass2(t *testing.T) {
+	o, err := parseArgs("--fatal-deprecation=dart-sass-2", "a.scss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasDeprecation(o.fatalDeprecations, "new-global") {
+		t.Error("expected new-global to be fatal")
+	}
+	for _, excluded := range []string{"color-module-compat", "import", "global-builtin", "if-function"} {
+		if hasDeprecation(o.fatalDeprecations, excluded) {
+			t.Errorf("expected %s to be excluded", excluded)
+		}
+	}
+}
+
+func hasDeprecation(deprecations []*deprecation.Deprecation, id string) bool {
+	for _, d := range deprecations {
+		if d.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func TestStyleAndCharset(t *testing.T) {
