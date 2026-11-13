@@ -47,11 +47,13 @@ func (sv *SerializeVisitor) writeRounded(text string) {
 }
 
 // isUnitAmbiguousWithExponent reports whether unit, serialized without
-// escapes, would parse as a numeric exponent.
+// escapes, would parse as a numeric exponent. A unit shorter than two
+// characters can never look like an exponent, including the empty unit that
+// the JavaScript/Dart APIs and the embedded protocol can produce.
 //
 // Matches Dart: _isUnitAmbiguousWithExponent
 func isUnitAmbiguousWithExponent(unit string) bool {
-	if len(unit) == 1 {
+	if len(unit) < 2 {
 		return false
 	}
 	first := unit[0]
