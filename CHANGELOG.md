@@ -1,9 +1,21 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.106.0`); the
+Release history. Tags track the pinned dart-sass version (`v1.106.1`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.106.1
+
+- Fix a crash when serializing an attribute selector whose value is the empty
+  string, such as `[class=""]`; it is now quoted like any other non-identifier
+  value.
+- Fix a crash when serializing a number whose unit is the empty string. This is
+  only reachable through the embedded protocol and the JavaScript/Dart APIs.
+- Convert invalid-argument errors raised while decoding host-supplied values
+  into `PARAMS` protocol errors instead of compile failures.
+- Byte-identical output to Dart Sass 1.106.1 (14383/14389 spec tests passing,
+  6 todo).
 
 ## 1.106.0
 

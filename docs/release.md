@@ -1,7 +1,7 @@
 # Release runbook
 
-Tags track the dart-sass version (`v1.106.0`); rehearsals add a suffix
-(`v1.106.0-alpha0`, `v1.106.0-alpha1`). Mechanics: [`ci.md`](ci.md). Bump
+Tags track the dart-sass version (`v1.106.1`); rehearsals add a suffix
+(`v1.106.1-alpha0`, `v1.106.1-alpha1`). Mechanics: [`ci.md`](ci.md). Bump
 surfaces: [`CONTRIBUTING.md`](CONTRIBUTING.md#version-bump-checklist).
 
 ## Bump
@@ -32,26 +32,26 @@ prerelease/final flows below. No tag at any point.
    the `cache` lines in `ci.yml`. Re-enable the parked workflow
    (`release.yml.disabled` back to `release.yml`) — need the build matrix
    for artifacts.
-2. Bump to `1.106.0-alpha0`, CHANGELOG, lockfile re-sync, commit, push.
+2. Bump to `1.106.1-alpha0`, CHANGELOG, lockfile re-sync, commit, push.
 3. CI green → `gh run download <run-id> -D alpha-artifacts` (9 npm tgzs +
    8 release archives + checksums).
 4. Classic token in env (`NODE_AUTH_TOKEN`; OIDC never serves hand runs).
    Rotate/delete after.
 5. `npm publish --tag next` from the downloaded tarballs: 8 platform
    packages first, then the wrapper. Never omit `--tag` on a prerelease.
-6. Optional paper trail: `gh release create v1.106.0-alpha0 --draft
+6. Optional paper trail: `gh release create v1.106.1-alpha0 --draft
    --prerelease --generate-notes` + upload.
 7. Set up trusted publishing now (add the repo as a trusted publisher on
    the `sass-embedded-go*` packages; nothing is parked in secrets
    beforehand) — prerequisite for every flow below.
 
-## CI prerelease (alpha1, `1.106.0-alpha0`, …)
+## CI prerelease (alpha1, `1.106.1-alpha0`, …)
 
 Standing rehearsal mechanism, not a one-off: proves the full automation
 before each final. Needs trusted publishing live (preceding step).
 
 1. Bump, CHANGELOG, lockfile re-sync, commit, push.
-2. CI green → tag (e.g. `v1.106.0-alpha1`), push tag.
+2. CI green → tag (e.g. `v1.106.1-alpha1`), push tag.
 3. CI creates the release as **draft** (`--prerelease`), attaches archives
    + tarballs, attests the archives (check with `gh attestation verify
    <archive> -R <owner/repo>`), and publishes npm under `next` (derived
