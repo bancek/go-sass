@@ -126,3 +126,24 @@ func TestToCssIdentifierSupplementaryPrivateUse(t *testing.T) {
 		t.Errorf("ToCssIdentifier(U+F0000) = %q, want %q", got, `\f0000 `)
 	}
 }
+
+func TestTryCssIdentifier(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+		ok    bool
+	}{
+		{"foo", "foo", true},
+		{"--foo", "--foo", true},
+		{"", "", false},
+		{"\x00", "", false},
+	}
+
+	for _, tt := range tests {
+		got, ok := TryCssIdentifier(tt.input)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("TryCssIdentifier(%q) = (%q, %v), want (%q, %v)",
+				tt.input, got, ok, tt.want, tt.ok)
+		}
+	}
+}
