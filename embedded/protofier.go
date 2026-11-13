@@ -9,11 +9,13 @@ package embedded
 // dart-source: lib/src/embedded/protofier.dart
 
 import (
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bancek/go-sass/orderedmap"
+	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/value"
 )
 
@@ -217,8 +219,39 @@ func (p *Protofier) DeprotofyResponse(response *InboundMessage_FunctionCallRespo
 // Out-of-range channel data surfaces as a parameter error naming the
 // offending channel.
 //
+// An ArgumentError raised while decoding is a parameter error too: Dart's
+// ArgumentError is not a Sass exception, so Dart's protofier converts it
+// into a PARAMS protocol error rather than letting it escape as a compile
+// failure.
+//
 // Matches Dart: _deprotofy
 func (p *Protofier) deprotofy(v *Value) (value.Value, error) {
+	result, err := p.deprotofyValue(v)
+	if err != nil {
+		if protocolErr := protofierArgumentError(err); protocolErr != nil {
+			return nil, protocolErr
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// protofierArgumentError converts an ArgumentError raised while decoding host
+// input into the PARAMS protocol error the host expects, and reports nil for
+// every other error.
+//
+// Matches Dart: the `on ArgumentError` handler in Protofier._deprotofy
+func protofierArgumentError(err error) *ProtocolError {
+	argumentErr, ok := errors.AsType[*sasscommon.ArgumentError](err)
+	if !ok {
+		return nil
+	}
+	return paramsError(argumentErr.Error())
+}
+
+// deprotofyValue decodes one protobuf value. The caller holds Dart's
+// ArgumentError handler around it.
+func (p *Protofier) deprotofyValue(v *Value) (value.Value, error) {
 	switch v.GetValue().(type) {
 	case *Value_String_:
 		s := v.GetString_()

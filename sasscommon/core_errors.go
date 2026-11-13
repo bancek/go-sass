@@ -15,7 +15,10 @@ import "fmt"
 // ArgumentError.name.
 //
 // It ports Dart's ArgumentError/ArgumentError.value from dart:core, raised
-// throughout the span algebra for cross-file or out-of-range operations.
+// throughout the span algebra for cross-file or out-of-range operations and
+// by value constructors for invalid arguments. The embedded protofier converts
+// it into a PARAMS protocol error, matching Dart's `on ArgumentError` in
+// protofier.dart.
 //
 // Matches Dart: ArgumentError / ArgumentError.value (dart:core)
 type ArgumentError struct {
