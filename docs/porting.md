@@ -6,7 +6,7 @@ Run the commands below from the repository root.
 
 ## Start here: an `upgrade to <version>` request
 
-A request like **“upgrade to 1.107.1”** is the complete instruction. It means:
+A request like **“upgrade to 1.108.2”** is the complete instruction. It means:
 discover the release span, port every functional unit, commit each unit,
 create one Go commit per rust-sass commit (including its release commits),
 push the feature branch, wait for branch CI, fast-forward and push `main`,
@@ -124,7 +124,7 @@ helpers, say) are a finding under this rule.
 
 ## Target discovery and pin resolution
 
-`TARGET` below is the upstream release tag, for example `1.107.1`. Run from
+`TARGET` below is the upstream release tag, for example `1.108.2`. Run from
 the repository root.
 
 ```sh

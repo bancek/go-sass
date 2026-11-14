@@ -143,7 +143,7 @@ func ForVersionInternal(version string, warn func(*Deprecation, string) error) [
 
 // CurrentVersion is the current version of Dart Sass, which this port
 // implements. It mirrors Dart's dartSassVersion.
-const CurrentVersion = "1.107.1"
+const CurrentVersion = "1.108.2"
 
 // parseVersion splits a dotted version into major/minor/patch numbers,
 // treating missing or non-numeric parts as zero.

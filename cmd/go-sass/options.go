@@ -25,7 +25,7 @@ import (
 // sassVersion is the version reported by --version and used for
 // --fatal-deprecation version comparisons. It tracks the dart-sass version
 // implemented by this port and the embedded compiler version.
-const sassVersion = "1.107.1"
+const sassVersion = "1.108.2"
 
 // usageError mirrors Dart's UsageException (exit code 64).
 type usageError struct{ message string }

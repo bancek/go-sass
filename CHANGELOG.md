@@ -1,9 +1,31 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.107.1`); the
+Release history. Tags track the pinned dart-sass version (`v1.108.2`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.108.2
+
+Covers dart-sass 1.108.0 through 1.108.2. The intermediate 1.108.0 and 1.108.1
+tags are not released separately: 1.108.1 fixed only upstream's embedded-host
+packaging, and 1.108.2 has no user-visible changes.
+
+- Undo the unintentional breaking changes added in 1.106.0 in how escaped
+  identifiers interact with `sass:meta` and named rest arguments. Reflection
+  lookups (`global-variable-exists`, `variable-exists`, `function-exists`,
+  `mixin-exists`, `get-function`, `get-mixin`, `get-module`,
+  `module-variables`/`functions`/`mixins`) and `@use … with` configuration
+  resolve identifiers in canonical form again.
+- Fix a bug where a namespace declared with an escaped identifier
+  (`@use "sass:math" as \$`) was unreachable through `sass:meta`.
+- Fix `meta.call()` with a string name falling back to a plain-CSS callable, and
+  escape `get-function()`/`get-mixin()`/`get-module()` names when serializing.
+- Fix argument verification to report unknown named arguments in the order they
+  were passed and without an Oxford comma, and match `meta` overloads against
+  parameter names as written.
+- Byte-identical output to Dart Sass 1.108.2 (14496/14502 spec tests passing,
+  6 todo).
 
 ## 1.107.1
 

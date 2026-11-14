@@ -9,8 +9,8 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `c59636a0f9bbc2954c9479991a4a277d4af53c06` (2026-11-05, `PORTED_FROM`) |
-| dart-sass version   | 1.108.0                                                                |
+| dart-sass commit    | `6019767566da18474530d1eda8578eee9ac4355d` (2026-11-10, `PORTED_FROM`) |
+| dart-sass version   | 1.108.2                                                                |
 | Embedded protocol   | 3.4.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
 
@@ -45,10 +45,10 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `c59636a0` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `dart-sass`          | `60197675` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
 | `sass-spec`          | `acbdcd39`                   | the spec suite expectations                                                               |
 | `sass`               | `74e9538f`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
-| `embedded-host-node` | `3a8d8c3` (host `1.107.1`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
+| `embedded-host-node` | `1648320` (host `1.108.2`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
 
 Update this table together with `PORTED_FROM` on every sync.
