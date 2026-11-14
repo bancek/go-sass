@@ -1702,11 +1702,7 @@ func (v *EvaluateVisitor) runBuiltInCallable(callable *functions.BuiltInCallable
 	named := results.named
 	separator := results.separator
 
-	names := make(map[string]struct{})
-	for k := range named.Keys() {
-		names[k] = struct{}{}
-	}
-	overload, err := callable.CallbackFor(len(positional), names)
+	overload, err := callable.CallbackFor(len(positional), named)
 	if err != nil {
 		v.ec.SetCallableNode(oldCallableNode)
 		return nil, err
@@ -1714,7 +1710,7 @@ func (v *EvaluateVisitor) runBuiltInCallable(callable *functions.BuiltInCallable
 
 	if overload.Params != nil {
 		_, err := addExceptionSpan(v, nodeWithSpan, func() (struct{}, error) {
-			return struct{}{}, overload.Params.Verify(len(positional), names)
+			return struct{}{}, overload.Params.Verify(len(positional), named)
 		}, nil)
 		if err != nil {
 			v.ec.SetCallableNode(oldCallableNode)
@@ -1854,11 +1850,7 @@ func (v *EvaluateVisitor) applyMixin(mix sasscallable.Callable, contentCallable 
 			if err != nil {
 				return err
 			}
-			names := make(map[string]struct{})
-			for name := range results.named.Keys() {
-				names[name] = struct{}{}
-			}
-			overload, err := c.CallbackFor(len(results.positional), names)
+			overload, err := c.CallbackFor(len(results.positional), results.named)
 			if err != nil {
 				return err
 			}

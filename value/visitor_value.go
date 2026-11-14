@@ -306,7 +306,11 @@ func (sv *SerializeVisitor) VisitFunction(f *SassFunction) (struct{}, error) {
 		return struct{}{}, sasscommon.NewSassScriptException(fmt.Sprintf("%s isn't a valid CSS value.", fStr), nil)
 	}
 	_, _ = sv.sb.WriteString("get-function(")
-	sv.visitQuotedString(f.Name())
+	name, err := util.ToCssIdentifier(f.Name())
+	if err != nil {
+		return struct{}{}, err
+	}
+	sv.visitQuotedString(name)
 	_ = sv.sb.WriteByte(')')
 	return struct{}{}, nil
 }
@@ -324,7 +328,11 @@ func (sv *SerializeVisitor) VisitMixin(m *SassMixin) (struct{}, error) {
 		return struct{}{}, sasscommon.NewSassScriptException(fmt.Sprintf("%s isn't a valid CSS value.", mStr), nil)
 	}
 	_, _ = sv.sb.WriteString("get-mixin(")
-	sv.visitQuotedString(m.Name())
+	name, err := util.ToCssIdentifier(m.Name())
+	if err != nil {
+		return struct{}{}, err
+	}
+	sv.visitQuotedString(name)
 	_ = sv.sb.WriteByte(')')
 	return struct{}{}, nil
 }
@@ -345,7 +353,11 @@ func (sv *SerializeVisitor) VisitModule(m *SassModule) (struct{}, error) {
 	if m.Module != nil {
 		if urlStr, err := m.Module.URL(); err == nil {
 			if namespace, ok := moduleDefaultNamespace(urlStr); ok {
-				sv.visitQuotedString(namespace)
+				ident, err := util.ToCssIdentifier(namespace)
+				if err != nil {
+					return struct{}{}, err
+				}
+				sv.visitQuotedString(ident)
 			}
 		}
 	}

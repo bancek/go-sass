@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/bancek/go-sass/functions"
@@ -349,6 +348,15 @@ func (v *EvaluateVisitor) evaluateArguments(args *value.ArgumentList) (*argument
 	named := orderedmap.NewWithCapacity[string, value.Value](args.Named.Len())
 	namedNodes := make(map[string]sasscommon.AstNode, args.Named.Len())
 	for name, expr := range args.Named.Entries() {
+		// Names are currently stored as textual values for
+		// backwards-compatibility with pre-1.106.0 behavior. See
+		// sass/sass#4268. Dart canonicalizes the name before evaluating the
+		// value, so a name that isn't a valid identifier fails first.
+		// Matches Dart: name = name.toCssIdentifier()
+		name, err := util.ToCssIdentifier(name)
+		if err != nil {
+			return nil, err
+		}
 		nodeForSpan, nserr := v.expressionNode(expr)
 		if nserr != nil {
 			return nil, nserr
@@ -1006,131 +1014,23 @@ func addExceptionTrace[T any](v *EvaluateVisitor, callback func() (T, error)) (T
 }
 
 // verifyArguments checks that the evaluated positional count and named keys
-// are valid for params, reporting failures at nodeWithSpan's span.
+// are valid for params, attaching the call site's span and trace to the
+// error.
 //
-// Matches Dart: _verifyArguments. Delegates the checks to verifyParameterList,
-// which emits spanless script failures; the addExceptionSpan wrapper converts
-// them to spanned runtime errors with the current trace at the call site.
-// named maps each passed name to whether it was passed (always true here).
+// Matches Dart: _verifyArguments, which wraps ParameterList.verify in
+// _addExceptionSpan. named is the evaluated named-argument map itself, the
+// same view Dart passes through MapKeySet(evaluated.named).
 // Matches Dart: _verifyArguments
-func (v *EvaluateVisitor) verifyArguments(positional int, named map[string]bool, params *value.ParameterList, nodeWithSpan sasscommon.AstNode) error {
+func (v *EvaluateVisitor) verifyArguments(positional int, named orderedmap.MapKeySet[string], params *value.ParameterList, nodeWithSpan sasscommon.AstNode) error {
+	// Dart's declaration is non-nullable; a callable with no parameters has an
+	// empty ParameterList, so the nil case runs the same checks here.
+	if params == nil {
+		params = value.EmptyParameterList()
+	}
 	_, err := addExceptionSpan(v, nodeWithSpan, func() (struct{}, error) {
-		return struct{}{}, verifyParameterList(positional, named, params)
+		return struct{}{}, params.Verify(positional, named)
 	}, nil)
 	return err
-}
-
-// verifyParameterList checks that a positional count and named keys are valid
-// for params, returning a spanless script failure for the caller to span.
-//
-// Matches Dart: ParameterList.verify. An argument passed both by position and
-// by name fails; a missing required argument fails as a multi-span error with
-// the declaration's span labeled "declaration" against the invocation. A rest
-// parameter accepts any arity. Over-arity says "positional " when named
-// arguments are present and otherwise counts plain arguments; unknown names
-// are listed $-prefixed and joined with "or". Messages use the parameters'
-// source spellings. A nil params expects zero arguments.
-// Matches Dart: ParameterList.verify
-func verifyParameterList(positional int, names map[string]bool, params *value.ParameterList) error {
-	if params == nil {
-		if positional > 0 || len(names) > 0 {
-			return sasscommon.NewSassScriptException(
-				fmt.Sprintf("Expected 0 arguments, got %d.", positional),
-				nil)
-		}
-		return nil
-	}
-
-	paramsSpan, err := params.Span()
-	if err != nil {
-		return err
-	}
-
-	namedUsed := 0
-	for i, param := range params.Parameters {
-		if i < positional {
-			if names[param.Name()] {
-				return sasscommon.NewSassScriptException(
-					fmt.Sprintf("Argument $%s was passed both by position and by name.", param.Name()),
-					nil)
-			}
-		} else if names[param.Name()] {
-			namedUsed++
-		} else if param.DefaultValue == nil {
-			return &sasscommon.MultiSpanSassScriptException{
-				Message:        fmt.Sprintf("Missing argument $%s.", param.Name()),
-				PrimaryLabel:   "invocation",
-				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
-			}
-		}
-	}
-
-	if params.RestParameter != nil {
-		return nil
-	}
-
-	if positional > len(params.Parameters) {
-		plural := "argument"
-		if len(params.Parameters) != 1 {
-			plural = "arguments"
-		}
-		wasPlural := "was"
-		if positional != 1 {
-			wasPlural = "were"
-		}
-		positionalPrefix := ""
-		if len(names) > 0 {
-			positionalPrefix = "positional "
-		}
-		return &sasscommon.MultiSpanSassScriptException{
-			Message:        fmt.Sprintf("Only %d %s%s allowed, but %d %s passed.", len(params.Parameters), positionalPrefix, plural, positional, wasPlural),
-			PrimaryLabel:   "invocation",
-			SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
-		}
-	}
-
-	if namedUsed < len(names) {
-		unknownNames := make([]string, 0)
-		for name := range names {
-			found := false
-			for _, param := range params.Parameters {
-				if param.Name() == name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				unknownNames = append(unknownNames, name)
-			}
-		}
-
-		if len(unknownNames) > 0 {
-			parameterWord := util.Pluralize("parameter", len(unknownNames), nil)
-
-			dollarNames := make([]string, len(unknownNames))
-			for i, name := range unknownNames {
-				dollarNames[i] = "$" + name
-			}
-
-			var parameterNames string
-			switch len(dollarNames) {
-			case 1:
-				parameterNames = dollarNames[0]
-			case 2:
-				parameterNames = dollarNames[0] + " or " + dollarNames[1]
-			default:
-				parameterNames = strings.Join(dollarNames[:len(dollarNames)-1], ", ") + ", or " + dollarNames[len(dollarNames)-1]
-			}
-
-			return &sasscommon.MultiSpanSassScriptException{
-				Message:        fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
-				PrimaryLabel:   "invocation",
-				SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: paramsSpan, Label: "declaration"}),
-			}
-		}
-	}
-
-	return nil
 }
 
 // stackTrace builds the trace for the current point, innermost frame first.
@@ -1249,9 +1149,16 @@ func (v *EvaluateVisitor) bindArguments(params *value.ParameterList, nodeWithSpa
 	// so source maps point at the argument or the default expression.
 	for i := len(args); i < len(parameters); i++ {
 		param := parameters[i]
-		if val, ok := kwargs.Get(param.Name()); ok {
-			kwargs.Delete(param.Name())
-			node := namedNodes[param.Name()]
+		// Named arguments are stored as textual values, so the parameter name
+		// is matched in canonical form.
+		// Matches Dart: parameter.name.toCssIdentifier()
+		nameIdent, err := util.ToCssIdentifier(param.Name())
+		if err != nil {
+			return nil, err
+		}
+		if val, ok := kwargs.Get(nameIdent); ok {
+			kwargs.Delete(nameIdent)
+			node := namedNodes[nameIdent]
 			if node == nil {
 				// Dart: evaluated.namedNodes[parameter.name] ?? _expressionNode(parameter.defaultValue!)
 				node, err = v.expressionNode(param.DefaultValue)
@@ -1473,11 +1380,7 @@ func (v *EvaluateVisitor) runUserDefinedCallable(
 	return WithStackFrame(v, name, callableNode, func() (value.Value, error) {
 		return WithEnvironment(v, c.Env().Closure(), func() (value.Value, error) {
 			return sassenv.Scope(v.env, func() (value.Value, error) {
-				namedKeys := make(map[string]bool)
-				for k := range named.Keys() {
-					namedKeys[k] = true
-				}
-				if err := v.verifyArguments(len(positional), namedKeys, c.Arguments(), callableNode); err != nil {
+				if err := v.verifyArguments(len(positional), named, c.Arguments(), callableNode); err != nil {
 					return nil, err
 				}
 
@@ -1533,7 +1436,8 @@ func (v *EvaluateVisitor) runUserDefinedCallable(
 // Matches Dart: the trailing check in _runUserDefinedCallable. Reports "No
 // parameter(s) named $..." with "invocation" on the call-site span and
 // "declaration" on the parameter list's named span, traced at the invocation.
-// kwargs keys are sorted for deterministic output.
+// Names keep the order the arguments were passed, as Dart iterates
+// evaluated.named.keys.
 // Matches Dart: MultiSpanSassRuntimeException throw in _runUserDefinedCallable.
 func (v *EvaluateVisitor) unusedKeywordsError(kwargs *orderedmap.LinkedMap[string, value.Value], nodeWithSpan sasscommon.AstNode, params *value.ParameterList) error {
 	nwsSpan, err := nodeWithSpan.Span()
@@ -1545,24 +1449,11 @@ func (v *EvaluateVisitor) unusedKeywordsError(kwargs *orderedmap.LinkedMap[strin
 	for name := range kwargs.Keys() {
 		names = append(names, "$"+name)
 	}
-	sort.Strings(names)
-
-	parameterWord := util.Pluralize("parameter", len(names), nil)
-
-	var parameterNames string
-	switch len(names) {
-	case 1:
-		parameterNames = names[0]
-	case 2:
-		parameterNames = names[0] + " or " + names[1]
-	default:
-		parameterNames = strings.Join(names[:len(names)-1], ", ") + ", or " + names[len(names)-1]
-	}
 
 	// Label the parameter list's named span as the declaration side, mirroring
 	// Dart's {callable.declaration.parameters.spanWithName: "declaration"}.
 	return &sasscommon.MultiSpanSassRuntimeException{
-		Message:        fmt.Sprintf("No %s named %s.", parameterWord, parameterNames),
+		Message:        fmt.Sprintf("No %s named %s.", util.Pluralize("parameter", len(names), nil), value.ToSentence(names, "or")),
 		Span:           nwsSpan,
 		PrimaryLabel:   "invocation",
 		SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: params.SpanWithName(), Label: "declaration"}),

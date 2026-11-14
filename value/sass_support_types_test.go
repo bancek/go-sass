@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/bancek/go-sass/box"
+	"github.com/bancek/go-sass/orderedmap"
 	"github.com/bancek/go-sass/sasscommon"
 )
 
@@ -180,7 +181,7 @@ func TestParameterListVerifyExactMatch(t *testing.T) {
 		NewParameter("name", supportSpan("$name", 1, 6), nil),
 	}, span, nil)
 
-	if err := pl.Verify(1, map[string]struct{}{}); err != nil {
+	if err := pl.Verify(1, orderedmap.New[string, Value]()); err != nil {
 		t.Errorf("Verify(1, {}) should pass, got: %v", err)
 	}
 }
@@ -192,7 +193,7 @@ func TestParameterListVerifyExtraPositional(t *testing.T) {
 		NewParameter("name", sasscommon.NewFileSpan(fs, 1, 6), nil),
 	}, span, nil)
 
-	err := pl.Verify(2, map[string]struct{}{})
+	err := pl.Verify(2, orderedmap.New[string, Value]())
 	if err == nil {
 		t.Error("Verify(2, {}) should fail for 1-parameter list")
 	}
@@ -205,7 +206,7 @@ func TestParameterListVerifyMissingRequired(t *testing.T) {
 		NewParameter("name", sasscommon.NewFileSpan(fs, 1, 6), nil),
 	}, span, nil)
 
-	err := pl.Verify(0, map[string]struct{}{})
+	err := pl.Verify(0, orderedmap.New[string, Value]())
 	if err == nil {
 		t.Error("Verify(0, {}) should fail when required param missing")
 	}
@@ -218,7 +219,9 @@ func TestParameterListVerifyNamed(t *testing.T) {
 		NewParameter("name", sasscommon.NewFileSpan(fs, 1, 6), nil),
 	}, span, nil)
 
-	err := pl.Verify(0, map[string]struct{}{"name": {}})
+	named := orderedmap.New[string, Value]()
+	named.Put("name", nil)
+	err := pl.Verify(0, named)
 	if err != nil {
 		t.Errorf("Verify(0, {name}) should pass, got: %v", err)
 	}
@@ -264,10 +267,12 @@ func TestParameterListMatchesValid(t *testing.T) {
 		NewParameter("name", supportSpan("$name", 1, 6), nil),
 	}, span, nil)
 
-	if !pl.Matches(1, map[string]struct{}{}) {
+	if !pl.Matches(1, orderedmap.New[string, Value]()) {
 		t.Error("Matches(1, {}) should be true")
 	}
-	if !pl.Matches(0, map[string]struct{}{"name": {}}) {
+	named := orderedmap.New[string, Value]()
+	named.Put("name", nil)
+	if !pl.Matches(0, named) {
 		t.Error("Matches(0, {name}) should be true")
 	}
 }
@@ -278,10 +283,12 @@ func TestParameterListMatchesInvalid(t *testing.T) {
 		NewParameter("name", supportSpan("$name", 1, 6), nil),
 	}, span, nil)
 
-	if pl.Matches(2, map[string]struct{}{}) {
+	if pl.Matches(2, orderedmap.New[string, Value]()) {
 		t.Error("Matches(2, {}) should be false")
 	}
-	if pl.Matches(0, map[string]struct{}{"unknown": {}}) {
+	unknown := orderedmap.New[string, Value]()
+	unknown.Put("unknown", nil)
+	if pl.Matches(0, unknown) {
 		t.Error("Matches(0, {unknown}) should be false")
 	}
 }
@@ -606,3 +613,65 @@ func TestStaticImportStringWithModifiers(t *testing.T) {
 
 // fmt import check (unused if no fmt.Errorf in the test)
 var _ = fmt.Sprintf
+
+// Dart reports unknown named arguments in the order they were passed
+// (MapKeySet(evaluated.named)) and joins them with toSentence, which has no
+// Oxford comma.
+func TestParameterListVerifyUnknownNamesKeepOrder(t *testing.T) {
+	span := supportSpan("($x: 1)", 0, 7)
+	pl := NewParameterList([]*Parameter{
+		NewParameter("x", supportSpan("$x: 1", 1, 6), NewNumberExpression(1, supportSpan("1", 5, 6), nil)),
+	}, span, nil)
+
+	named := orderedmap.New[string, Value]()
+	for _, name := range []string{"a", "b", "c"} {
+		named.Put(name, nil)
+	}
+
+	err := pl.Verify(0, named)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if want := "No parameters named $a, $b or $c."; err.Error() != want {
+		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
+}
+
+// Matches compares the raw parameter name (Dart's deliberate asymmetry with
+// Verify), so a declaration spelled `1a` matches an invocation written `1a`.
+// A canonicalized lookup cannot match it, which is why Matches must not
+// canonicalize the way Verify does.
+func TestParameterListMatchesUsesRawNames(t *testing.T) {
+	span := supportSpan("($1a)", 0, 5)
+	pl := NewParameterList([]*Parameter{
+		NewParameter("1a", supportSpan("$1a", 1, 5), nil),
+	}, span, nil)
+
+	raw := orderedmap.New[string, Value]()
+	raw.Put("1a", nil)
+	if !pl.Matches(0, raw) {
+		t.Error("Matches(0, {1a}) should be true")
+	}
+
+	if pl.Matches(0, orderedmap.New[string, Value]()) {
+		t.Error("Matches(0, {}) should be false")
+	}
+}
+
+// Parameter and parameter-list display escape their names the way Dart's
+// toString does.
+func TestParameterListStringEscapesNames(t *testing.T) {
+	span := supportSpan("($1a, $1b...)", 0, 13)
+	rest := "1b"
+	pl := NewParameterList([]*Parameter{
+		NewParameter("1a", supportSpan("$1a", 1, 5), nil),
+	}, span, &rest)
+
+	got, err := pl.String()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `$\31 a, $\31 b...`; got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+}

@@ -709,3 +709,39 @@ func TestResolveCssEscapes(t *testing.T) {
 		t.Errorf("error = %q, want %q", argErr.Message, want)
 	}
 }
+
+func TestVariableNameEscapedDollar(t *testing.T) {
+	// A variable whose name is a CSS escape for `$` resolves to the character
+	// itself, like every other escaped identifier character.
+	p := newTestParser(`$\$`)
+	name, err := p.variableName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != "$" {
+		t.Errorf("variableName = %q, want %q", name, "$")
+	}
+}
+
+func TestResolveCssEscapesIfCanonical(t *testing.T) {
+	tests := []struct {
+		text string
+		want string
+		ok   bool
+	}{
+		{"foo", "foo", true},
+		{"--foo", "--foo", true},
+		{`\31 a`, "1a", true},
+		{"1a", "", false},
+		{`a"b`, "", false},
+		{"", "", false},
+	}
+
+	for _, tt := range tests {
+		got, ok := ResolveCssEscapesIfCanonical(tt.text)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("ResolveCssEscapesIfCanonical(%q) = (%q, %v), want (%q, %v)",
+				tt.text, got, ok, tt.want, tt.ok)
+		}
+	}
+}

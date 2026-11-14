@@ -56,6 +56,12 @@ func testSpan() sasscommon.FileSpan {
 	return sasscommon.NewFileSpan(fs, 0, 4)
 }
 
+// parseTestSpan returns a span covering the whole of text.
+func parseTestSpan(text string) sasscommon.FileSpan {
+	fs := sasscommon.NewFileSource([]byte(text), nil)
+	return sasscommon.NewFileSpan(fs, 0, len(text))
+}
+
 func testSpan2() sasscommon.FileSpan {
 	fs := sasscommon.NewFileSource([]byte("other { color: blue; }"), nil)
 	return sasscommon.NewFileSpan(fs, 0, 5)
@@ -414,10 +420,20 @@ func TestStackTraceStringFormat(t *testing.T) {
 }
 
 // ===========================================================================
-// verifyParameterList() tests
+// verifyArguments() tests
 // ===========================================================================
 
-func TestVerifyParameterListExactMatch(t *testing.T) {
+// namedSet builds the ordered named-argument key set the evaluator passes to
+// verifyArguments, the way Dart wraps evaluated.named in a MapKeySet.
+func namedSet(names ...string) orderedmap.MapKeySet[string] {
+	set := orderedmap.New[string, value.Value]()
+	for _, name := range names {
+		set.Put(name, nil)
+	}
+	return set
+}
+
+func TestVerifyArgumentsExactMatch(t *testing.T) {
 	params := value.NewParameterList(
 		[]*value.Parameter{
 			value.NewParameter("x", testSpan(), nil),
@@ -426,21 +442,20 @@ func TestVerifyParameterListExactMatch(t *testing.T) {
 		testSpan(),
 		nil,
 	)
-	names := map[string]bool{}
-	err := verifyParameterList(2, names, params)
-	if err != nil {
+	v := testVisitor(t, nil)
+	if err := v.verifyArguments(2, namedSet(), params, testNode{span: testSpan()}); err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 }
 
-func TestVerifyParameterListTooManyPositional(t *testing.T) {
+func TestVerifyArgumentsTooManyPositional(t *testing.T) {
 	params := value.NewParameterList(
 		[]*value.Parameter{value.NewParameter("x", testSpan(), nil)},
 		testSpan(),
 		nil,
 	)
-	names := map[string]bool{}
-	err := verifyParameterList(3, names, params)
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(3, namedSet(), params, testNode{span: testSpan()})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -449,17 +464,19 @@ func TestVerifyParameterListTooManyPositional(t *testing.T) {
 	}
 }
 
-func TestVerifyParameterListMissingArgument(t *testing.T) {
+func TestVerifyArgumentsMissingArgument(t *testing.T) {
+	// OriginalName reads the parameter's source spelling, so the span covers
+	// the written `$y` rather than the declaration's name.
 	params := value.NewParameterList(
 		[]*value.Parameter{
 			value.NewParameter("x", testSpan(), nil),
-			value.NewParameter("y", testSpan(), nil),
+			value.NewParameter("y", parseTestSpan("$y"), nil),
 		},
 		testSpan(),
 		nil,
 	)
-	names := map[string]bool{}
-	err := verifyParameterList(1, names, params)
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(1, namedSet(), params, testNode{span: testSpan()})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -468,14 +485,14 @@ func TestVerifyParameterListMissingArgument(t *testing.T) {
 	}
 }
 
-func TestVerifyParameterListBothPositionalAndNamed(t *testing.T) {
+func TestVerifyArgumentsBothPositionalAndNamed(t *testing.T) {
 	params := value.NewParameterList(
 		[]*value.Parameter{value.NewParameter("x", testSpan(), nil)},
 		testSpan(),
 		nil,
 	)
-	names := map[string]bool{"x": true}
-	err := verifyParameterList(1, names, params)
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(1, namedSet("x"), params, testNode{span: testSpan()})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -484,14 +501,14 @@ func TestVerifyParameterListBothPositionalAndNamed(t *testing.T) {
 	}
 }
 
-func TestVerifyParameterListUnknownNamed(t *testing.T) {
+func TestVerifyArgumentsUnknownNamed(t *testing.T) {
 	params := value.NewParameterList(
 		[]*value.Parameter{value.NewParameter("x", testSpan(), nil)},
 		testSpan(),
 		nil,
 	)
-	names := map[string]bool{"z": true}
-	err := verifyParameterList(1, names, params)
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(1, namedSet("z"), params, testNode{span: testSpan()})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -500,35 +517,46 @@ func TestVerifyParameterListUnknownNamed(t *testing.T) {
 	}
 }
 
-func TestVerifyParameterListRestParameterAcceptsAll(t *testing.T) {
+func TestVerifyArgumentsRestParameterAcceptsAll(t *testing.T) {
 	restName := "rest"
 	params := value.NewParameterList(
 		[]*value.Parameter{value.NewParameter("x", testSpan(), nil)},
 		testSpan(),
 		&restName,
 	)
-	names := map[string]bool{}
-	err := verifyParameterList(10, names, params)
-	if err != nil {
+	v := testVisitor(t, nil)
+	if err := v.verifyArguments(10, namedSet(), params, testNode{span: testSpan()}); err != nil {
 		t.Errorf("rest parameter should accept extra args: got %v", err)
 	}
 }
 
-func TestVerifyParameterListNilParamsNoArgs(t *testing.T) {
-	names := map[string]bool{}
-	err := verifyParameterList(0, names, nil)
-	if err != nil {
+func TestVerifyArgumentsNilParamsNoArgs(t *testing.T) {
+	v := testVisitor(t, nil)
+	if err := v.verifyArguments(0, namedSet(), nil, testNode{span: testSpan()}); err != nil {
 		t.Errorf("nil params with 0 args should be ok: got %v", err)
 	}
 }
 
-func TestVerifyParameterListNilParamsWithArgs(t *testing.T) {
-	names := map[string]bool{}
-	err := verifyParameterList(1, names, nil)
+func TestVerifyArgumentsNilParamsWithArgs(t *testing.T) {
+	// Dart's ParameterList is never null; a callable with no parameters is the
+	// empty list, so the extra argument reports Dart's over-arity message.
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(1, namedSet(), nil, testNode{span: testSpan()})
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if !strings.Contains(err.Error(), "Expected 0 arguments") {
+	if !strings.Contains(err.Error(), "Only 0 arguments allowed, but 1 was passed.") {
+		t.Errorf("error = %q", err.Error())
+	}
+}
+
+func TestVerifyArgumentsNilParamsWithNamed(t *testing.T) {
+	v := testVisitor(t, nil)
+	err := v.verifyArguments(0, namedSet("x"), nil, testNode{span: testSpan()})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "No parameter named $x.") {
 		t.Errorf("error = %q", err.Error())
 	}
 }

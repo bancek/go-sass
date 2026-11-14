@@ -226,13 +226,14 @@ func TestMetaFunctionExistsEnvironment(t *testing.T) {
 }
 
 func TestMetaFunctionExistsGlobal(t *testing.T) {
-	// The built-in fallback compares the RAW name (no underscore
-	// normalization) — matches Dart's _builtInFunctions.containsKey(text).
+	// The built-in fallback is consulted with the same normalized name as the
+	// environment lookup, matching Dart's _builtInFunctions.containsKey(name).
 	v := newMetaVisitor(t, nil)
 	v.builtInFunctions["global-fn"] = metaNoopCallable("global-fn")
 
 	metaAssertBool(t, callMetaOK(t, v, "function-exists", metaQuoted("global-fn")), true)
-	metaAssertBool(t, callMetaOK(t, v, "function-exists", metaQuoted("global_fn")), false)
+	metaAssertBool(t, callMetaOK(t, v, "function-exists", metaQuoted("global_fn")), true)
+	metaAssertBool(t, callMetaOK(t, v, "function-exists", metaQuoted("nope")), false)
 }
 
 func TestMetaFunctionExistsModule(t *testing.T) {
@@ -649,5 +650,69 @@ func TestRegisterMetaFunctions(t *testing.T) {
 	}
 	if len(v.builtInFunctions) != 13 {
 		t.Errorf("builtInFunctions meta entries = %d, want 13", len(v.builtInFunctions))
+	}
+}
+
+// --- reflection escapes (sass/sass#4268) ---
+
+func TestMetaGetFunctionCanonicalName(t *testing.T) {
+	// A name that isn't the canonical spelling of an identifier (such as one
+	// with a quote) can't be resolved.
+	v := newMetaVisitor(t, nil)
+
+	if _, err := callMeta(t, v, "get-function", metaQuoted("ab")); err == nil {
+		t.Fatal("unknown plain name resolved, want an error")
+	}
+	_, err := callMeta(t, v, "get-function", metaQuoted(`a"b`))
+	if err == nil {
+		t.Fatal("non-canonical name resolved, want an error")
+	}
+	if got, want := err.Error(), `Function not found: 'a"b'`; got != want {
+		t.Errorf("error = %q, want %q", got, want)
+	}
+}
+
+func TestMetaVariableExistsCanonicalName(t *testing.T) {
+	v := newMetaVisitor(t, nil)
+	node := metaTestNode{span: metaTestSpan()}
+	if err := v.env.SetVariable("ab", value.NewUnitlessNumber(1), node, nil, true); err != nil {
+		t.Fatal(err)
+	}
+
+	metaAssertBool(t, callMetaOK(t, v, "variable-exists", metaQuoted("ab")), true)
+	metaAssertBool(t, callMetaOK(t, v, "variable-exists", metaQuoted(`a"b`)), false)
+}
+
+func TestMetaGetModuleNonCanonicalNamespace(t *testing.T) {
+	v := newMetaVisitor(t, nil)
+	metaModuleWith(t, v, "m", nil, nil, nil)
+
+	if _, err := callMeta(t, v, "get-module", metaQuoted("m")); err != nil {
+		t.Fatalf("plain namespace: %v", err)
+	}
+
+	_, err := callMeta(t, v, "get-module", metaQuoted(""))
+	if err == nil {
+		t.Fatal("empty namespace resolved, want an error")
+	}
+	if got, want := err.Error(), `There is no module with namespace "".`; got != want {
+		t.Errorf("error = %q, want %q", got, want)
+	}
+}
+
+func TestMetaModuleVariablesCanonicalKeys(t *testing.T) {
+	v := newMetaVisitor(t, nil)
+	vars := orderedmap.NewFromPairs(orderedmap.Pair[string, value.Value]{
+		Key: "1a", Val: value.NewUnitlessNumber(1),
+	})
+	metaModuleWith(t, v, "m", nil, nil, vars)
+
+	got := callMetaOK(t, v, "module-variables", metaQuoted("m"))
+	s, err := value.SerializeValueInspect(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `("\\31 a": 1)`; s != want {
+		t.Errorf("module-variables = %q, want %q", s, want)
 	}
 }

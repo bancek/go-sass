@@ -14,6 +14,7 @@ import (
 	"github.com/bancek/go-sass/sassurl"
 
 	"github.com/bancek/go-sass/evalcontext"
+	"github.com/bancek/go-sass/orderedmap"
 	"github.com/bancek/go-sass/sasscallable"
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/value"
@@ -215,8 +216,8 @@ func (b *BuiltInCallable) WithDeprecationWarning(module string, newName *string)
 // an invariant violation.
 //
 // Matches Dart: BuiltInCallable.callbackFor
-func (b *BuiltInCallable) CallbackFor(positional int, names map[string]struct{}) (CallbackForResult, error) {
-	overload, err := b.callbackFor(positional, names)
+func (b *BuiltInCallable) CallbackFor(positional int, named orderedmap.MapKeySet[string]) (CallbackForResult, error) {
+	overload, err := b.callbackFor(positional, named)
 	if err != nil {
 		return CallbackForResult{}, err
 	}
@@ -225,7 +226,7 @@ func (b *BuiltInCallable) CallbackFor(positional int, names map[string]struct{})
 
 // callbackFor is the unexported overload search behind CallbackFor: it
 // returns the winning overload entry itself rather than a detached result.
-func (b *BuiltInCallable) callbackFor(positional int, names map[string]struct{}) (*overload, error) {
+func (b *BuiltInCallable) callbackFor(positional int, named orderedmap.MapKeySet[string]) (*overload, error) {
 	var fuzzyMatch *overload
 	var minMismatchDistance int
 	var hasFuzzy bool
@@ -234,7 +235,7 @@ func (b *BuiltInCallable) callbackFor(positional int, names map[string]struct{})
 		overload := &b.overloads[i]
 
 		// Ideally, find an exact match.
-		if matchesSignatureExact(overload.params, positional, names) {
+		if overload.params.Matches(positional, named) {
 			return overload, nil
 		}
 
@@ -277,45 +278,6 @@ func absInt(n int) int {
 		return -n
 	}
 	return n
-}
-
-// matchesSignatureExact reports whether a call with positional positional
-// arguments and the named argument set names is exactly compatible with the
-// parameter declaration params: every positional slot must not also be passed
-// by name, every required parameter must be filled positionally or by name,
-// no unknown names may remain, and extra positionals are allowed only with a
-// rest parameter.
-//
-// Matches Dart: ParameterList.matches
-func matchesSignatureExact(params *value.ParameterList, positional int, names map[string]struct{}) bool {
-	if params == nil {
-		return positional == 0 && len(names) == 0
-	}
-
-	namedUsed := 0
-	for i, p := range params.Parameters {
-		_, named := names[p.Name()]
-		if i < positional {
-			if named {
-				return false
-			}
-		} else if named {
-			namedUsed++
-		} else if p.DefaultValue == nil {
-			return false
-		}
-	}
-
-	if params.RestParameter != nil {
-		return true
-	}
-	if positional > len(params.Parameters) {
-		return false
-	}
-	if namedUsed < len(names) {
-		return false
-	}
-	return true
 }
 
 // NewBuiltInCallableFunction creates a BuiltInCallable from a raw parameter

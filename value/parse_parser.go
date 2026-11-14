@@ -76,6 +76,34 @@ func ResolveCssEscapes(text string) (string, error) {
 	return result, nil
 }
 
+// ResolveCssEscapesIfCanonical returns text's semantic value when text is
+// already the canonical spelling of an escaped identifier, and false
+// otherwise.
+//
+// This exists for compatibility with the pre-1.106.0 behavior, in which
+// identifiers were stored on AST nodes in canonical form, so lookups with Sass
+// strings only worked when those strings were in the same canonical form. See
+// sass/sass#4268.
+//
+// Matches Dart: StringExtension.resolveCssEscapesIfCanonical
+func ResolveCssEscapesIfCanonical(text string) (string, bool) {
+	if util.IsSimpleIdentifier(text) {
+		return text, true
+	}
+
+	// This could obviously be more efficient, but we only get here when doing
+	// reflection on very unusual identifiers so it's not worth the extra code.
+	ident, err := ParseIdentifier(text)
+	if err != nil {
+		return "", false
+	}
+	canonical, err := util.ToCssIdentifier(ident)
+	if err != nil || canonical != text {
+		return "", false
+	}
+	return ident, true
+}
+
 // IsVariableDeclarationLike returns whether text starts like a variable declaration.
 //
 // Everything after the `:` is ignored.

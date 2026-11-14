@@ -48,7 +48,7 @@ func inspect(t *testing.T, v value.Value) string {
 	return s
 }
 
-func callMapFn(t *testing.T, fn *BuiltInCallable, positional int, names map[string]struct{}, args []value.Value) (value.Value, error) {
+func callMapFn(t *testing.T, fn *BuiltInCallable, positional int, names orderedmap.MapKeySet[string], args []value.Value) (value.Value, error) {
 	t.Helper()
 	res, err := fn.CallbackFor(positional, names)
 	if err != nil {
@@ -57,7 +57,7 @@ func callMapFn(t *testing.T, fn *BuiltInCallable, positional int, names map[stri
 	return res.Fn(nil, args)
 }
 
-func callMapFnOK(t *testing.T, fn *BuiltInCallable, positional int, names map[string]struct{}, args []value.Value) value.Value {
+func callMapFnOK(t *testing.T, fn *BuiltInCallable, positional int, names orderedmap.MapKeySet[string], args []value.Value) value.Value {
 	t.Helper()
 	got, err := callMapFn(t, fn, positional, names, args)
 	if err != nil {
@@ -471,7 +471,7 @@ func TestMapRemoveDoesNotMutateOriginal(t *testing.T) {
 func TestMapRemoveKeyPassedByName(t *testing.T) {
 	// The second overload exists so $key can be passed by name.
 	m := mkMap(mkStr("a"), mkNum(1), mkStr("b"), mkNum(2))
-	got := callMapFnOK(t, mapRemoveFunction(), 1, map[string]struct{}{"key": {}},
+	got := callMapFnOK(t, mapRemoveFunction(), 1, namedWith("key"),
 		[]value.Value{m, mkStr("a"), mkList(t, value.ListSeparatorComma)})
 	assertInspect(t, got, "(b: 2)")
 }
@@ -1149,4 +1149,13 @@ func TestMapModuleNoMixinsNoVariables(t *testing.T) {
 	if m.Variables().Len() != 0 {
 		t.Errorf("variables = %d, want 0", m.Variables().Len())
 	}
+}
+
+// namedWith builds an ordered named-argument map with the given keys.
+func namedWith(names ...string) orderedmap.MapKeySet[string] {
+	m := orderedmap.New[string, value.Value]()
+	for _, name := range names {
+		m.Put(name, nil)
+	}
+	return m
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/bancek/go-sass/sassurl"
 
+	"github.com/bancek/go-sass/orderedmap"
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/util"
 )
@@ -28,6 +29,14 @@ import (
 func ParseParameterList(contents string, url *sassurl.URL) (*ParameterList, error) {
 	p := NewStylesheetParser([]byte(contents), url, false, nil)
 	return p.parseParameterList()
+}
+
+// EmptyParameterList returns the declaration with no parameters, the Go
+// spelling of Dart's `ParameterList.empty` for callables that declare none.
+//
+// Matches Dart: ParameterList.empty
+func EmptyParameterList() *ParameterList {
+	return NewParameterList(nil, sasscommon.BogusSpan, nil)
 }
 
 // ParameterList is a parameter declaration, as for a function or mixin
@@ -136,25 +145,41 @@ func (p *ParameterList) IsEmpty() bool {
 func (p *ParameterList) IsSassNode() {}
 func (p *ParameterList) IsAstNode()  {}
 
-// Verify returns an error when positional and names are not valid for this
+// Verify returns an error when positional and named are not valid for this
 // parameter declaration: an argument passed both by position and by name, a
 // missing required argument, too many positional arguments, or unknown named
 // arguments. Errors point at the invocation with the declaration as a
 // secondary span.
 //
+// named is the evaluated named-argument map, whose keys Dart reads through
+// MapKeySet(evaluated.named); only the keys matter here, and they are reported
+// in the order they were passed.
+//
 // Matches Dart: ParameterList.verify
-func (p *ParameterList) Verify(positional int, names map[string]struct{}) error {
+func (p *ParameterList) Verify(positional int, named orderedmap.MapKeySet[string]) error {
+	// Dart's MapKeySet is backed by the map itself, so a null argument map is
+	// only reachable from Go callers; treat it as empty.
+	if named == nil {
+		named = orderedmap.New[string, Value]()
+	}
+
 	namedUsed := 0
 	for i, param := range p.Parameters {
+		nameIdent, err := util.ToCssIdentifier(param.Name())
+		if err != nil {
+			return err
+		}
 		if i < positional {
-			if _, ok := names[param.Name()]; ok {
+			if named.Has(nameIdent) {
 				origName, err := param.OriginalName()
 				if err != nil {
 					return err
 				}
-				return sasscommon.NewSassScriptException(fmt.Sprintf("Argument %s was passed both by position and by name.", origName), nil)
+				return sasscommon.NewSassScriptException(
+					fmt.Sprintf("Argument %s was passed both by position and by name.", origName),
+					nil)
 			}
-		} else if _, ok := names[param.Name()]; ok {
+		} else if named.Has(nameIdent) {
 			namedUsed++
 		} else if param.DefaultValue == nil {
 			origName, err := param.OriginalName()
@@ -175,7 +200,7 @@ func (p *ParameterList) Verify(positional int, names map[string]struct{}) error 
 
 	if positional > len(p.Parameters) {
 		posWord := ""
-		if len(names) > 0 {
+		if named.Len() > 0 {
 			posWord = "positional "
 		}
 		return &sasscommon.MultiSpanSassScriptException{
@@ -185,25 +210,32 @@ func (p *ParameterList) Verify(positional int, names map[string]struct{}) error 
 		}
 	}
 
-	if namedUsed < len(names) {
-		unknownNames := make(map[string]struct{})
-		for name := range names {
-			unknownNames[name] = struct{}{}
-		}
+	if namedUsed < named.Len() {
+		paramIdents := make([]string, 0, len(p.Parameters))
 		for _, param := range p.Parameters {
-			delete(unknownNames, param.Name())
-		}
-		nameList := make([]string, 0, len(unknownNames))
-		for name := range unknownNames {
-			origName, err := p.OriginalParameterName(name)
+			nameIdent, err := util.ToCssIdentifier(param.Name())
 			if err != nil {
-				nameList = append(nameList, "$"+name)
-			} else {
-				nameList = append(nameList, origName)
+				return err
+			}
+			paramIdents = append(paramIdents, nameIdent)
+		}
+
+		unknownNames := make([]string, 0)
+		for name := range named.Keys() {
+			known := false
+			for _, paramIdent := range paramIdents {
+				if paramIdent == name {
+					known = true
+					break
+				}
+			}
+			if !known {
+				unknownNames = append(unknownNames, "$"+name)
 			}
 		}
+
 		return &sasscommon.MultiSpanSassScriptException{
-			Message:        fmt.Sprintf("No %s named %s.", util.Pluralize("parameter", len(unknownNames), nil), toSentence(nameList, "or")),
+			Message:        fmt.Sprintf("No %s named %s.", util.Pluralize("parameter", len(unknownNames), nil), ToSentence(unknownNames, "or")),
 			PrimaryLabel:   "invocation",
 			SecondarySpans: sasscommon.NewSecondarySpans(sasscommon.SecondarySpan{Span: p.SpanWithName(), Label: "declaration"}),
 		}
@@ -240,19 +272,35 @@ func (p *ParameterList) OriginalParameterName(name string) (string, error) {
 	return "", fmt.Errorf("This declaration has no parameter named \"$%s\".", name)
 }
 
-// Matches returns whether positional and names are valid for this
-// parameter declaration, using the same arity rules as Verify but answering
-// true or false instead of raising an error.
+// Matches returns whether positional and named are valid for this parameter
+// declaration, using the same arity rules as Verify but answering true or
+// false instead of raising an error.
+//
+// named is the evaluated named-argument map, as in Verify.
+//
+// Unlike Verify, the parameter names are compared as written, not in
+// canonical form: Dart's matches still compares the raw parameter.name
+// (c59636a0 changed only verify), so an invocation that spells a parameter
+// name differently from its declaration does not match here.
 //
 // Matches Dart: ParameterList.matches
-func (p *ParameterList) Matches(positional int, names map[string]struct{}) bool {
+func (p *ParameterList) Matches(positional int, named orderedmap.MapKeySet[string]) bool {
+	// Go-only guard: Dart's MapKeySet is always backed by a map, so a nil
+	// interface can only come from a Go caller.
+	if named == nil {
+		named = orderedmap.New[string, Value]()
+	}
+	if p == nil {
+		return positional == 0 && named.Len() == 0
+	}
+
 	namedUsed := 0
 	for i, param := range p.Parameters {
 		if i < positional {
-			if _, ok := names[param.Name()]; ok {
+			if named.Has(param.Name()) {
 				return false
 			}
-		} else if _, ok := names[param.Name()]; ok {
+		} else if named.Has(param.Name()) {
 			namedUsed++
 		} else if param.DefaultValue == nil {
 			return false
@@ -265,7 +313,7 @@ func (p *ParameterList) Matches(positional int, names map[string]struct{}) bool 
 	if positional > len(p.Parameters) {
 		return false
 	}
-	if namedUsed < len(names) {
+	if namedUsed < named.Len() {
 		return false
 	}
 	return true
@@ -283,7 +331,11 @@ func (p *ParameterList) String() (string, error) {
 		parts = append(parts, "$"+s)
 	}
 	if p.RestParameter != nil {
-		parts = append(parts, "$"+*p.RestParameter+"...")
+		rest, err := util.ToCssIdentifier(*p.RestParameter)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, "$"+rest+"...")
 	}
 	return strings.Join(parts, ", "), nil
 }

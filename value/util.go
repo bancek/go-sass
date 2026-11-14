@@ -34,11 +34,11 @@ func declarationName(span sasscommon.FileSpan) (string, error) {
 	return trimAsciiRight(text[:colonIdx], false), nil
 }
 
-// toSentence converts [items] into an English sentence, separating each word
+// ToSentence converts [items] into an English sentence, separating each word
 // with [conjunction].
 //
 // Matches Dart: toSentence (lib/src/utils.dart)
-func toSentence(items []string, conjunction string) string {
+func ToSentence(items []string, conjunction string) string {
 	if conjunction == "" {
 		conjunction = "and"
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/bancek/go-sass/sasscommon"
 	"github.com/bancek/go-sass/sassenv"
 	"github.com/bancek/go-sass/sassmodule"
+	"github.com/bancek/go-sass/util"
 	"github.com/bancek/go-sass/value"
 )
 
@@ -62,6 +63,19 @@ func (v *EvaluateVisitor) registerMetaFunctions(env *sassenv.Environment) {
 	}
 }
 
+// canonicalName returns name's semantic value when it is already the
+// canonical spelling of an escaped identifier, with underscores normalized to
+// hyphens, and the empty string otherwise.
+//
+// Matches Dart: `name.resolveCssEscapesIfCanonical()?.replaceAll("_", "-") ?? ""`
+func canonicalName(name string) string {
+	canonical, ok := value.ResolveCssEscapesIfCanonical(name)
+	if !ok {
+		return ""
+	}
+	return strings.ReplaceAll(canonical, "_", "-")
+}
+
 // createMetaFunctions returns the evaluator-context sass:meta functions,
 // also registered globally with a deprecation warning (unlike the shared
 // module members, these close over the visitor's environment and state).
@@ -81,7 +95,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			if err != nil {
 				return nil, err
 			}
-			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
+			normalizedName := canonicalName(name.Text)
 			module, hasModule, err := v.getNullableModule(args[1])
 			if err != nil {
 				return nil, err
@@ -106,7 +120,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			if err != nil {
 				return nil, err
 			}
-			exists, err := v.env.VariableExists(strings.ReplaceAll(name.Text, "_", "-"))
+			exists, err := v.env.VariableExists(canonicalName(name.Text))
 			if err != nil {
 				return nil, err
 			}
@@ -121,7 +135,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			if err != nil {
 				return nil, err
 			}
-			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
+			normalizedName := canonicalName(name.Text)
 			module, hasModule, err := v.getNullableModule(args[1])
 			if err != nil {
 				return nil, err
@@ -135,9 +149,11 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 					return nil, err
 				}
 				if !exists {
-					// The built-in table is keyed by raw name, so it is
-					// consulted with the unnormalized spelling.
-					_, exists = v.builtInFunctions[name.Text]
+					// Dart: `_builtInFunctions.containsKey(name)` — the same
+					// name that was already normalized above, so the built-in
+					// table (keyed by normalized declared name) is consulted
+					// with it.
+					_, exists = v.builtInFunctions[normalizedName]
 				}
 			}
 			if exists {
@@ -151,7 +167,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			if err != nil {
 				return nil, err
 			}
-			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
+			normalizedName := canonicalName(name.Text)
 			module, hasModule, err := v.getNullableModule(args[1])
 			if err != nil {
 				return nil, err
@@ -188,7 +204,11 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			}
 			m := value.EmptySassMap()
 			for name, val := range mod.Variables().Entries() {
-				m.Set(&value.SassString{Text: name, HasQuotes: true}, val)
+				key, err := util.ToCssIdentifier(name)
+				if err != nil {
+					return nil, err
+				}
+				m.Set(&value.SassString{Text: key, HasQuotes: true}, val)
 			}
 			return m, nil
 		}),
@@ -200,8 +220,12 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			}
 			m := value.EmptySassMap()
 			for name, fn := range mod.Functions().Entries() {
+				key, err := util.ToCssIdentifier(name)
+				if err != nil {
+					return nil, err
+				}
 				sf := value.NewSassFunctionWithCompileContext(fn, v.compileContext)
-				m.Set(&value.SassString{Text: name, HasQuotes: true}, sf)
+				m.Set(&value.SassString{Text: key, HasQuotes: true}, sf)
 			}
 			return m, nil
 		}),
@@ -213,8 +237,12 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			}
 			m := value.EmptySassMap()
 			for name, mix := range mod.Mixins().Entries() {
+				key, err := util.ToCssIdentifier(name)
+				if err != nil {
+					return nil, err
+				}
 				sm := value.NewSassMixinWithCompileContext(mix, v.compileContext)
-				m.Set(&value.SassString{Text: name, HasQuotes: true}, sm)
+				m.Set(&value.SassString{Text: key, HasQuotes: true}, sm)
 			}
 			return m, nil
 		}),
@@ -245,7 +273,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 
 			var callable sasscallable.Callable
 			callable, err = addExceptionSpan(v, ec.CallableNode(), func() (sasscallable.Callable, error) {
-				normalizedName := strings.ReplaceAll(name.Text, "_", "-")
+				normalizedName := canonicalName(name.Text)
 				if hasModule {
 					c, ok := module.Functions().Get(normalizedName)
 					if !ok {
@@ -281,7 +309,7 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 			if err != nil {
 				return nil, err
 			}
-			normalizedName := strings.ReplaceAll(name.Text, "_", "-")
+			normalizedName := canonicalName(name.Text)
 			module, hasModule, err := v.getNullableModule(args[1])
 			if err != nil {
 				return nil, err
@@ -377,7 +405,11 @@ func (v *EvaluateVisitor) createMetaFunctions(env *sassenv.Environment) []sassca
 					deprecation.CallString); err != nil {
 					return nil, err
 				}
-				expr := value.NewFunctionExpression(str.Text, invocation, callableSpan, nil)
+				name, ok := value.ResolveCssEscapesIfCanonical(str.Text)
+				if !ok {
+					return v.invokeCallable(functions.NewPlainCssCallable(str.Text), callableNode, invocation)
+				}
+				expr := value.NewFunctionExpression(name, invocation, callableSpan, nil)
 				return v.VisitFunctionExpression(expr)
 			}
 
@@ -445,17 +477,23 @@ func (v *EvaluateVisitor) loadModuleForSassScript(callableNode sasscommon.AstNod
 			if err != nil {
 				return nil, err
 			}
-			name := strings.ReplaceAll(nameStr.Text, "_", "-")
+			originalName := nameStr.Text
+			name, ok := value.ResolveCssEscapesIfCanonical(originalName)
+			if !ok {
+				return nil, sasscommon.NewSassScriptException(fmt.Sprintf(
+					"$%s was not declared with !default in the @used module.", originalName), nil)
+			}
+			name = strings.ReplaceAll(name, "_", "-")
 			if _, exists := values[name]; exists {
 				return nil, sasscommon.NewSassScriptException(
-					fmt.Sprintf("The variable $%s was configured twice.", name), nil)
+					fmt.Sprintf("The variable $%s was configured twice.", originalName), nil)
 			}
 			if strings.HasPrefix(name, "-") && !privateDeprecation {
 				privateDeprecation = true
 				if err := v.ec.WarnDeprecation(
 					fmt.Sprintf("Configuring private variables (such as $%s) is "+
 						"deprecated.\n"+
-						"This will be an error in Dart Sass 2.0.0.", name),
+						"This will be an error in Dart Sass 2.0.0.", originalName),
 					deprecation.WithPrivate); err != nil {
 					return nil, err
 				}
@@ -512,7 +550,13 @@ func (v *EvaluateVisitor) getNullableModule(module value.Value) (sassmodule.Modu
 		}
 		return sm, true, nil
 	case *value.SassString:
-		sm, err := v.env.GetModule(m.Text)
+		// The error quotes the text as written, not the resolved namespace.
+		namespace, ok := value.ResolveCssEscapesIfCanonical(m.Text)
+		if !ok {
+			return nil, false, sasscommon.NewSassScriptException(
+				fmt.Sprintf("There is no module with namespace \"%s\".", m.Text), nil)
+		}
+		sm, err := v.env.GetModule(namespace)
 		if err != nil {
 			return nil, false, err
 		}

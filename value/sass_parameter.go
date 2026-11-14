@@ -10,6 +10,7 @@ package value
 
 import (
 	"github.com/bancek/go-sass/sasscommon"
+	"github.com/bancek/go-sass/util"
 )
 
 // Parameter is a parameter declared as part of a ParameterList.
@@ -64,12 +65,16 @@ func (p *Parameter) IsSassDeclaration() {}
 
 // String renders the parameter as `$name` or `$name: default`.
 func (p *Parameter) String() (string, error) {
+	name, err := util.ToCssIdentifier(p.name)
+	if err != nil {
+		return "", err
+	}
 	if p.DefaultValue == nil {
-		return p.name, nil
+		return name, nil
 	}
 	valStr, err := p.DefaultValue.String()
 	if err != nil {
 		return "", err
 	}
-	return p.name + ": " + valStr, nil
+	return name + ": " + valStr, nil
 }

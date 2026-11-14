@@ -1418,11 +1418,7 @@ func (v *EvaluateVisitor) VisitLegacyIfExpression(expr *value.LegacyIfExpression
 
 	// The arity check reports against the legacy if() declaration at the call
 	// span.
-	names := make(map[string]struct{})
-	for k := range named.Keys() {
-		names[k] = struct{}{}
-	}
-	if err := value.LegacyIfDeclaration.Verify(len(positional), names); err != nil {
+	if err := value.LegacyIfDeclaration.Verify(len(positional), named); err != nil {
 		span, spanErr := expr.Span()
 		if spanErr != nil {
 			return nil, spanErr
