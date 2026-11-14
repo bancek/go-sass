@@ -118,7 +118,7 @@ checklist runs `npm install --package-lock-only`.
 
 ## Tags and prereleases
 
-Tags track the pinned dart-sass version: `v1.106.1`, etc. Pushing a `v*`
+Tags track the pinned dart-sass version: `v1.107.0`, etc. Pushing a `v*`
 tag creates the draft GitHub release with binaries + npm tarballs, and
 publishes registries: npm under `next` on `-`-suffixed tags, `latest`
 otherwise; archives carry Sigstore attestations either way. The full
@@ -129,10 +129,10 @@ procedure, including the alpha/final distinction, lives in
 Test the release path with a prerelease suffix (never `latest`):
 
 ```sh
-git tag v1.106.1-prerelease && git push origin v1.106.1-prerelease
+git tag v1.107.0-prerelease && git push origin v1.107.0-prerelease
 # verify assets on the release page, then clean up:
-gh release delete v1.106.1-prerelease --cleanup-tag
-git tag -d v1.106.1-prerelease
+gh release delete v1.107.0-prerelease --cleanup-tag
+git tag -d v1.107.0-prerelease
 ```
 
 ## Caches and trusted publishing

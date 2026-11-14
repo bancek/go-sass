@@ -1,9 +1,19 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.106.1`); the
+Release history. Tags track the pinned dart-sass version (`v1.107.0`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.107.0
+
+- Support fatal deprecation selectors matching dart-sass 1.107.0:
+  `--fatal-deprecation` accepts `-{id}` exclusions and `dart-sass-2`, and the
+  embedded protocol accepts `fatal_deprecation_except`.
+- Selecting deprecations from a version later than the running compiler now
+  emits the new `deprecation-version` warning.
+- Byte-identical output to Dart Sass 1.107.0 (14383/14389 spec tests passing,
+  6 todo).
 
 ## 1.106.1
 

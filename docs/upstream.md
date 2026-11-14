@@ -10,7 +10,7 @@ tooling). This file records the human-readable picture.
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
 | dart-sass commit    | `455cbc0508b3fb9952a6fc0bb000a58e46ef8574` (2026-10-28, `PORTED_FROM`) |
-| dart-sass version   | 1.106.1                                                                |
+| dart-sass version   | 1.107.0                                                                |
 | Embedded protocol   | 3.3.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
 
@@ -49,6 +49,6 @@ pinned release (pub cache / GitHub), not dart-sass.
 | `sass-spec`          | `1e2e5dda`                   | the spec suite expectations                                                               |
 | `sass`               | `53e8d75`                    | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
-| `embedded-host-node` | `c60459d` (host `1.106.1`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
+| `embedded-host-node` | `2ed4f2a` (host `1.107.0`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
 
 Update this table together with `PORTED_FROM` on every sync.

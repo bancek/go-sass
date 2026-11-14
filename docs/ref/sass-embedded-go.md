@@ -18,7 +18,7 @@ fallback (same-version false-green risk — hence the resolve gate).
 
 ## Build-time assembly (nothing vendored)
 
-`embedded-host-node` submodule @ tag `1.106.1` (`c60459d`), full clone:
+`embedded-host-node` submodule @ tag `1.107.0` (`2ed4f2a`), full clone:
 
 1. `go build -o <pkg>/platform-tmp-sass ./cmd/go-sass` (the compiler binary).
 2. `npm install` + `npm run compile` inside `./embedded-host-node`, in place
@@ -64,8 +64,8 @@ wrong engine.
   declare their `libc` (`glibc`/`musl` strings, mirroring upstream
   sass-embedded); musl entries are genuine musl-linked static binaries,
   never relabeled gnu binaries.
-- Wrapper `package.json`: version tracks dart-sass from `1.106.1`, host runtime
-  deps exact-pinned (proven with host 1.106.1), lockfile committed.
+- Wrapper `package.json`: version tracks dart-sass from `1.107.0`, host runtime
+  deps exact-pinned (proven with host 1.107.0), lockfile committed.
 - **Unsigned binaries.** The compiler binaries ship unsigned (no Apple
   notarization) — the esbuild/swc/dart-sass precedent. macOS quarantine
   (`com.apple.quarantine`, the Gatekeeper prompt) is attached by browsers
@@ -92,6 +92,6 @@ way.
 
 | Dart/JS                                                                | Go                                                                       |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `embedded-host-node` submodule (`sass/embedded-host-node` @ `1.106.1`) | `embedded-host-node-go/` (build script, template swap, manifests, tests) |
+| `embedded-host-node` submodule (`sass/embedded-host-node` @ `1.107.0`) | `embedded-host-node-go/` (build script, template swap, manifests, tests) |
 | `sass-embedded` npm host (dev-only peer)                               | coexistence differential target                                          |
 | old `sass-embedded-go` harness (`test.js`)                             | `test/test.mjs` (copied verbatim behind the gate)                        |
