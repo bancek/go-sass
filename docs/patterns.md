@@ -233,3 +233,28 @@ happens only at the render boundary (`StderrLogger`, embedded). See
 `Module.Variables/Functions/Mixins` return the `orderedmap.Map` interface (not
 a concrete type, not a builtin map) so forwarded/shadowed views compose.
 `SetVariable` writes into the environment's frame 0 for `!global` visibility.
+
+## 11. Naming
+
+Identifiers follow the Dart source wherever Go permits. The conversion is
+mechanical; a rename beyond it is a finding (`porting.md` "Porting standard",
+`review.md` §4 step 2). The table uses placeholder names to show the
+conversion, not real declarations.
+
+| Dart                                    | Go                                            | Note                                         |
+| --------------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| `Value? visitFoo(Foo node)`             | `func (v *Visitor) VisitFoo(node Foo) (Value, error)` | exported method; `throw`/`null` → `error`/nil |
+| `void _checkThing(int count)`           | `func (v *Visitor) checkThing(count int) error` | `_` dropped; receiver replaces `this`        |
+| `var nameIdent = ...`                   | `nameIdent := ...`                            | locals keep their name                       |
+| `void visit(Foo nodeWithSpan)`          | `func (v *Visitor) visit(nodeWithSpan Foo)`   | arguments keep their name                    |
+| `String type` (Go keyword)              | `typeName` / `typ`                            | only where a keyword forces it               |
+
+Package layout is a separate question from naming: `value/` mirrors
+`lib/src/ast` + `lib/src/value`, `eval/` mirrors `lib/src/visitor`. A helper
+may move to the package that can import it (see `architecture.md`), but its
+name and its call site do not change; record the move in the file's
+`// dart-source:` header.
+
+Shape is a separate question from naming: extracting a block into a helper
+called in its place is allowed, while renaming an argument, inlining a Dart
+helper into several call sites, or folding a callback parameter is not.

@@ -69,6 +69,59 @@ divergence and belongs in `docs/divergences.md` — never preserved silently.
 If a unit exposes a pre-existing Go shortcut in the code it touches, fix it in
 that same unit; do not leave it for a later cleanup.
 
+## Porting standard
+
+Ported code reproduces the Dart unit's algorithm. Go's types, error returns,
+and package layout force some reshaping — that is expected. The rules below
+are what stays fixed.
+
+### Logic fidelity
+
+For every Dart function or method the unit touches, the Go counterpart makes
+the same decisions and performs the same effects, in the same order, on the
+same values:
+
+- every guard, branch, loop bound, early return, and error site has a Go
+  counterpart producing the same outcome in the same order;
+- the same value and span reach each call — a fallback where Dart re-evaluates
+  an expression is a change;
+- a step that can fail or allocate observably runs the same number of times;
+- unreachable branches still match Dart's computation ("verify already
+  guarantees it" is not a reason to drop one);
+- a Dart callback parameter stays a Go parameter (or an explicit callback
+  argument); it is not folded into the callee.
+
+### Naming fidelity
+
+Identifiers follow Dart wherever Go permits:
+
+- **Functions/methods** convert mechanically (`lowerCamelCase` →
+  `ExportedCamelCase` for public API, `lowerCamelCase` for package-private
+  code). A leading `_` is dropped: Go package privacy replaces it. No semantic
+  renames. The conversions are listed in `patterns.md` §11.
+- **Arguments** keep their names after conversion (`nodeWithSpan` →
+  `nodeWithSpan`). The only permitted additions are the receiver that was
+  `this` in Dart and context parameters a Go signature needs (for example a
+  `*EvaluateVisitor` where Dart uses an implicit `this`).
+- **Locals** keep their names after conversion (`nameIdent` stays `nameIdent`).
+  Rename only to avoid a Go keyword or a shadow that will not compile.
+
+### Reshaping that is allowed
+
+Method → function with an explicit receiver parameter; block → helper called
+exactly where the block was, with the same inputs and the same result (pure
+extraction); merged tightly-coupled steps when each branch still has a 1:1
+Dart counterpart. When one Dart method becomes several Go functions, name the
+primary part after it and note the split in the file's `// dart-source:`
+header.
+
+Re-implementing a Dart helper, inlining one into several call sites, or
+extracting logic that changes what runs where is not reshaping — it is a port
+bug even when output matches. A green `sass-spec` run does not establish
+fidelity: the specs exercise behavior, and drift hides in paths they do not
+reach. Duplicate implementations of one Dart declaration (two `verify`-style
+helpers, say) are a finding under this rule.
+
 ## Target discovery and pin resolution
 
 `TARGET` below is the upstream release tag, for example `1.107.1`. Run from
@@ -128,9 +181,10 @@ invent a release commit that rust-sass does not have.
 1. Check out the upstream commit and port only its `lib/` diff.
 2. For Dart sync/async twin files, read the **async** file only (the sync
    file is generated).
-3. Port line-by-line: same control flow, helpers, messages, ordering, spans,
-   and error paths. No behavioral or structural shortcuts. A Go-only guard,
-   fallback, or simplification is a bug even if the tests pass.
+3. Port line-by-line against the [Porting standard](#porting-standard): same
+   logic, helpers, messages, ordering, spans, and error paths; same function,
+   argument, and local names where Go permits. A Go-only guard, fallback, or
+   simplification is a bug even if the tests pass.
 4. Add failing-first internal tests in the touched package, covering the new
    behavior and its exact messages and error spans.
 5. Advance the `sass-spec` pin to that unit's spec commit, never past an
@@ -253,7 +307,9 @@ Every unit commit and every release commit is reviewed before it is created.
    proof of parity, and hacks or shortcuts are rejected.
 3. Show the staged summary (`git diff --cached --stat`), the pins being moved,
    the new/changed internal tests, the focused spec results, and any
-   differential output.
+   differential output. For units that touch ported declarations, also list
+   each touched Dart function/method and its Go counterpart — or the
+   `review.md` §3 adaptation that permits the difference.
 4. Stop and wait for approval. Do not `git commit` until the user approves.
 5. After the commit, continue with the next unit or the release steps.
 

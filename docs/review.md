@@ -12,20 +12,22 @@ warnings, import resolution, and evaluation order/scope effects.
 
 **Non-goals:**
 
-- No literal structural parity. Go's package system forces more
-  restructuring than Dart needs (see §3). Review _boundary behavior_,
-  not file counts.
+- No structural parity required. Package layout, explicit receivers, and Go's
+  types are expected (§3). **Logic fidelity is required**: the same guards,
+  branches, loop bounds, early returns, and error sites in the same order, and
+  the same names where Go permits (`porting.md` "Porting standard"). Review
+  boundary behavior _and_ algorithm; file counts are layout, not logic.
 - No cross-port check. Read Dart in `dart-sass/` directly (`porting.md`).
   The Rust port is provenance only.
-- No style review. If behavior matches, structure is fine even when it
-  looks nothing like Dart.
+- No style review beyond naming. Identifiers follow the mechanical conversion
+  in §4 step 2; a rename beyond it is a finding, not a style preference.
 
 **Scope:** the whole module vs `dart-sass/lib/src`. Outlying surfaces map
 elsewhere: `embedded/` ↔ `lib/src/embedded/*` +
 `embedded_sass.proto`, `cmd/go-sass/` ↔ `lib/src/executable/*`. Review those
 only when the finding lives at the seam (e.g. error → proto mapping).
 
-Pin under review: `PORTED_FROM` (`059beb7a8ecde742320bbff23304bcc3ce343e7b`,
+Pin under review: `PORTED_FROM` (`c59636a0f9bbc2954c9479991a4a277d4af53c06`,
 v1.107.1 per `upstream.md`) must agree with the `dart-sass/` submodule
 pin. Record both hashes in every finding log (§7).
 
@@ -91,6 +93,7 @@ Check these first so review time goes to real bugs. Each is documented in
 | `toString()` / inspect / css  | `String()` vs `SerializeValueInspect` vs `ToCssString(quote)` — never conflate                                | `patterns.md` §6                                             |
 | `Module`/`Callable` identity  | reference identity                                                                                            | no ID counter in Dart; `architecture.md` §10                 |
 | float formatting edge         | `float64()` per-product casts; `sassmathcgo` C-libm backend in tests/spec, opt-in `-tags cgomath` for the CLI | bit parity; `critical-invariants.md` FMA rule, `ref/math.md` |
+| identifier names              | mechanical case conversion (`isBogus` → `IsBogus`), leading `_` dropped                                       | Go conventions; `patterns.md` §11                            |
 
 If a difference is not in this table (or in `divergences.md`), treat it as
 a suspect, not an adaptation.
@@ -98,16 +101,18 @@ a suspect, not an adaptation.
 ## 4. Per-file review procedure
 
 Apply to each map row in §2, in §5 order. Keep the Dart file open beside
-the Go file(s); judge behavior, not shape.
+the Go file(s); judge logic and naming, not shape.
 
 1. **Locate and size.** Resolve Go counterpart(s) via the `rg` recipe in
    §2. Note splits/merges/qualifiers. If Dart changed since `PORTED_FROM`
    with no Go counterpart, file a missing-port finding and stop.
-2. **Entry points and names.** For each public Dart function/method, find
-   the Go func. Names convert mechanically (`isBogus` → `IsBogus`,
-   `toSpace` → `ToSpace`); any rename beyond case/shape, moved logic
-   between files, or dropped/added parameter is a finding unless §3 covers
-   it (e.g. added `ec`/`io` params are expected).
+2. **Entry points and names.** For each Dart function/method, find the Go
+   func. Names convert mechanically (`isBogus` → `IsBogus`, `toSpace` →
+   `ToSpace`, leading `_` dropped); arguments and locals keep their names
+   (`nodeWithSpan` stays `nodeWithSpan`, `nameIdent` stays `nameIdent`). Any
+   rename beyond case/shape, moved logic between files, or dropped/added
+   parameter is a finding unless §3 covers it (e.g. added `ec`/`io` params
+   are expected). See `patterns.md` §11.
 3. **Control flow and guards.** Walk the Dart body in order: every guard,
    branch, loop bound, early return, and error site must have a Go
    counterpart producing the same outcome in the same order. A missing
