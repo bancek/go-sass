@@ -1,9 +1,17 @@
 # Changelog
 
-Release history. Tags track the pinned dart-sass version (`v1.107.0`); the
+Release history. Tags track the pinned dart-sass version (`v1.107.1`); the
 procedure lives in [`docs/release.md`](docs/release.md).
 
 ## Unreleased
+
+## 1.107.1
+
+- Advertise embedded protocol 3.4.0, the version dart-sass 1.107.1 reports for
+  `fatal_deprecation_except` (the field itself shipped in 1.107.0).
+- Match dart-sass 1.107.1's embedded host release.
+- Byte-identical output to Dart Sass 1.107.1 (14383/14389 spec tests passing,
+  6 todo).
 
 ## 1.107.0
 

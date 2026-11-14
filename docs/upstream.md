@@ -9,9 +9,9 @@ tooling). This file records the human-readable picture.
 
 |                     |                                                                        |
 | ------------------- | ---------------------------------------------------------------------- |
-| dart-sass commit    | `455cbc0508b3fb9952a6fc0bb000a58e46ef8574` (2026-10-28, `PORTED_FROM`) |
-| dart-sass version   | 1.107.0                                                                |
-| Embedded protocol   | 3.3.0                                                                  |
+| dart-sass commit    | `059beb7a8ecde742320bbff23304bcc3ce343e7b` (2026-10-30, `PORTED_FROM`) |
+| dart-sass version   | 1.107.1                                                                |
+| Embedded protocol   | 3.4.0                                                                  |
 | Dart SDK constraint | `>=3.13.0 <4.0.0` (dart-sass `pubspec.yaml`)                           |
 
 On every re-sync to current `origin/main` (procedure: `porting.md`),
@@ -45,10 +45,10 @@ pinned release (pub cache / GitHub), not dart-sass.
 
 | Submodule            | Pin                          | Governs                                                                                   |
 | -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `dart-sass`          | `455cbc05` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
+| `dart-sass`          | `059beb7a` (= `PORTED_FROM`) | the ported behavior, porting reference + differential loop; must agree with `PORTED_FROM` |
 | `sass-spec`          | `1e2e5dda`                   | the spec suite expectations                                                               |
-| `sass`               | `53e8d75`                    | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
+| `sass`               | `74e9538f`                   | `embedded_sass.proto` (moves only on `PROTOCOL_VERSION` changes) + host build vendoring   |
 | `bootstrap-main`     | `25aa8cc0`                   | the `bench/` bootstrap workload                                                           |
-| `embedded-host-node` | `2ed4f2a` (host `1.107.0`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
+| `embedded-host-node` | `3a8d8c3` (host `1.107.1`)  | the `sass-embedded-go` host build (moves with the wrapper version)                        |
 
 Update this table together with `PORTED_FROM` on every sync.

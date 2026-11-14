@@ -1,7 +1,7 @@
 # Intentional divergences
 
 Every _behavioral_ divergence between this port and Dart Sass has been resolved:
-the Go port produces byte-identical output to Dart Sass `1.107.0` on the
+the Go port produces byte-identical output to Dart Sass `1.107.1` on the
 gate workloads.
 
 This document records the differences that remain **on purpose**: places where

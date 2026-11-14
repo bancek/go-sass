@@ -17,8 +17,8 @@ One package plus generated bindings plus the CLI entry:
 - `embedded/executable.go` + `sass/` — the `--embedded` entry that serves
   the protocol over stdio.
 
-It reports protocol version `3.3.0`, compiler/implementation version
-`1.107.0`, and implementation name `"dart-sass"` — the values the
+It reports protocol version `3.4.0`, compiler/implementation version
+`1.107.1`, and implementation name `"dart-sass"` — the values the
 `sass-embedded` host requires (`compilerVersion` / `protocolVersion` in
 `embedded/isolate_dispatcher.go`).
 
@@ -50,7 +50,7 @@ A compile _failure_ is a normal failure response and must **not** exit.
 | --- | --------------------------------------------------------------------------------------------- |
 | D1  | `protoc-gen-go` with **committed** generated code — no build-time `protoc`.                   |
 | D2  | Dispatcher + reusable isolates; one isolate per compilation, pooled and reused.               |
-| D3  | `"dart-sass"` / `"1.107.0"` version reporting (host-required constants).                      |
+| D3  | `"dart-sass"` / `"1.107.1"` version reporting (host-required constants).                      |
 | D4  | Host function signatures never panic — an invalid signature becomes a compile failure.        |
 | D5  | Importer canonicalize contexts carry the containing-URL access tracking that affects caching. |
 
